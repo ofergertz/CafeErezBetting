@@ -140,7 +140,7 @@ public class FormsController(IFormsService formsService, AppDbContext db, IMatch
         CancellationToken ct)
     {
         var forms = await formsService.GetAllFormsAsync(status, type, date, ct);
-        return Ok(forms);
+        return Ok(new { forms });
     }
 
     [HttpPatch("{id:guid}/status")]
