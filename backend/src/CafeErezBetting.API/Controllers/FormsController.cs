@@ -150,7 +150,14 @@ public class FormsController(IFormsService formsService, AppDbContext db, IMatch
         if (!Enum.TryParse<FormStatus>(req.Status, true, out var status))
             return BadRequest(new { message = $"Invalid status: {req.Status}" });
 
-        await formsService.UpdateFormStatusAsync(id, status, ct);
+        try
+        {
+            await formsService.UpdateFormStatusAsync(id, status, ct);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
         return Ok();
     }
 
