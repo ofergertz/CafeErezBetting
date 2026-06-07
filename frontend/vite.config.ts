@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
+/// <reference types="vitest" />
 
 export default defineConfig({
   plugins: [react()],
@@ -23,6 +24,11 @@ export default defineConfig({
         changeOrigin: true,
       },
     },
+  },
+  test: {
+    include: ['src/**/*.{test,spec}.{ts,tsx}'],
+    exclude: ['e2e/**', 'node_modules/**'],
+    environment: 'jsdom',
   },
   build: {
     target: 'esnext',
