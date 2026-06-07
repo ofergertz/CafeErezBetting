@@ -1,0 +1,90 @@
+name: Swagger Validate & API Breaking Changes
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  validate-swagger:
+    name: Validate Swagger / Generate OpenAPI
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Restore dependencies
+        working-directory: backend
+        run: dotnet restore
+
+      - name: Build (Release)
+        working-directory: backend
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Install Swashbuckle CLI
+        run: dotnet tool install --global Swashbuckle.AspNetCore.Cli
+
+      - name: Generate OpenAPI spec
+        run: |
+          mkdir -p docs
+          swagger tofile \
+            --output docs/openapi.json \
+            backend/src/CafeErezBetting.API/bin/Release/net8.0/CafeErezBetting.API.dll \
+            v1
+
+      - name: Validate OpenAPI JSON
+        run: |
+          python3 -c "import json; json.load(open('docs/openapi.json')); print('✅ OpenAPI valid')"
+
+      - name: Upload OpenAPI spec artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: openapi-spec
+          path: docs/openapi.json
+
+  api-breaking-changes:
+    name: API Breaking Changes Check
+    runs-on: ubuntu-latest
+    needs: validate-swagger
+    if: github.event_name == 'pull_request' && github.base_ref == 'main'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "stable"
+
+      - name: Download current OpenAPI artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: openapi-spec
+          path: docs/
+
+      - name: Download baseline OpenAPI from main
+        run: |
+          mkdir -p docs
+          curl -f https://raw.githubusercontent.com/ofergertz/CafeErezBetting/main/docs/openapi.json \
+            -o docs/openapi-main.json || echo "No baseline yet — skipping breaking change check"
+
+      - name: Install oasdiff
+        run: go install github.com/tufin/oasdiff@latest
+
+      - name: Check for breaking changes
+        run: |
+          if [ -f docs/openapi-main.json ]; then
+            oasdiff breaking docs/openapi-main.json docs/openapi.json
+          else
+            echo "⚠️ No baseline found — skipping breaking change check on first run."
+          fi

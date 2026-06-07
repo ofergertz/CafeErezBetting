@@ -5,6 +5,7 @@ import { api } from '@/lib/api'
 import type { LottoPayload, LottoRow, FormSubmittedDto } from '@/types'
 import { NumberGrid } from '@/components/forms/NumberGrid'
 import { SubmitSuccessOverlay } from '@/components/forms/SubmitSuccessOverlay'
+import { Sparkles } from 'lucide-react'
 
 const COST_PER_ROW = 8
 const MAX_ROWS = 10
@@ -115,6 +116,14 @@ export default function LottoPage() {
   return (
     <div className="max-w-3xl mx-auto space-y-4 pb-8">
       <SubmitSuccessOverlay visible={showSuccess} />
+
+      <div className="bg-gradient-to-l from-purple-700 to-purple-500 rounded-xl p-4 mb-2 flex items-center gap-3">
+        <Sparkles size={28} className="text-white" />
+        <div>
+          <h2 className="text-white font-bold text-lg">לוטו</h2>
+          <p className="text-purple-100 text-sm">בחר 6 מספרים</p>
+        </div>
+      </div>
 
       <div className="card p-4">
         <h1 className="text-2xl font-bold text-[--color-accent]">{t('lotto.title')}</h1>

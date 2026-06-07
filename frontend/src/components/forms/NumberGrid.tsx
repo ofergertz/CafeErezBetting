@@ -24,9 +24,11 @@ export function NumberGrid({
             key={n}
             type="button"
             disabled={disabled}
+            aria-pressed={isSelected}
+            aria-label={n.toString()}
             onClick={() => onToggle(n)}
             className={clsx(
-              'num-cell',
+              'num-cell active:scale-[1.15] transform-gpu',
               isSelected && !isStrong && 'selected',
               isSelected && isStrong && 'strong',
               disabled && 'opacity-50 cursor-not-allowed pointer-events-none',

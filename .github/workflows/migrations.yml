@@ -1,0 +1,49 @@
+name: EF Core Migration Check
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  migration-check:
+    name: Check EF Core Migrations
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Install EF Core tools
+        run: dotnet tool install --global dotnet-ef
+
+      - name: List EF Core migrations
+        run: |
+          dotnet ef migrations list \
+            --project src/CafeErezBetting.Infrastructure \
+            --startup-project src/CafeErezBetting.API
+
+      - name: Fail if pending migrations exist
+        run: |
+          output=$(dotnet ef migrations list \
+            --project src/CafeErezBetting.Infrastructure \
+            --startup-project src/CafeErezBetting.API 2>&1)
+          echo "$output"
+          if echo "$output" | grep -qi "pending"; then
+            echo "❌ Pending migrations detected — apply them before merging."
+            exit 1
+          fi
+          echo "✅ No pending migrations."

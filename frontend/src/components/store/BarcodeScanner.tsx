@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
+import { ScanBarcode } from 'lucide-react'
 import { api } from '@/lib/api'
 
 interface Product {
@@ -84,8 +85,8 @@ export default function BarcodeScanner({ onFound }: BarcodeScannerProps) {
           {toast}
         </div>
       )}
-      <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-700 text-center">
-        📷 מצב סריקה פעיל — כוון את הסורק למוצר
+      <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-700 text-center flex items-center justify-center gap-2">
+        <ScanBarcode size={16} /> מצב סריקה פעיל — כוון את הסורק למוצר
       </div>
     </>
   )

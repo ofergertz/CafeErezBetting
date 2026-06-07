@@ -2,6 +2,27 @@ import { useTranslation } from 'react-i18next'
 import { useBetSlipStore } from '@/store/betSlipStore'
 import type { WinnerMatch, WinnerPick } from '@/types'
 
+function teamColor(name: string): string {
+  let hash = 0
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash)
+  const colors = ['#e74c3c','#3498db','#2ecc71','#9b59b6','#f39c12','#1abc9c','#e67e22','#34495e']
+  return colors[Math.abs(hash) % colors.length]
+}
+
+function TeamBadge({ name }: { name: string }) {
+  const initials = name.replace(/[^\p{L}\d]/gu, ' ').trim().split(/\s+/).slice(0, 2).map(w => w[0]?.toUpperCase() ?? '').join('')
+  const bg = teamColor(name)
+  return (
+    <span
+      className="inline-flex items-center justify-center w-7 h-7 rounded-full text-white text-xs font-bold flex-shrink-0"
+      style={{ backgroundColor: bg }}
+      aria-hidden="true"
+    >
+      {initials || '?'}
+    </span>
+  )
+}
+
 interface Props { match: WinnerMatch }
 
 const PICKS: { key: WinnerPick; label: string }[] = [
@@ -48,10 +69,16 @@ export default function MatchCard({ match }: Props) {
       {/* Teams + odds */}
       <div className="flex items-center gap-3">
         {/* Teams */}
-        <div className="flex-1 min-w-0">
-          <p className="font-semibold text-sm truncate">{match.homeTeam}</p>
-          <p className="text-xs text-gray-400 my-0.5">vs</p>
-          <p className="font-semibold text-sm truncate">{match.awayTeam}</p>
+        <div className="flex-1 min-w-0 space-y-1">
+          <div className="flex items-center gap-2">
+            <TeamBadge name={match.homeTeam} />
+            <p className="font-semibold text-sm truncate">{match.homeTeam}</p>
+          </div>
+          <p className="text-xs text-gray-400 ps-9">vs</p>
+          <div className="flex items-center gap-2">
+            <TeamBadge name={match.awayTeam} />
+            <p className="font-semibold text-sm truncate">{match.awayTeam}</p>
+          </div>
         </div>
 
         {/* Odds buttons */}
@@ -63,6 +90,7 @@ export default function MatchCard({ match }: Props) {
               <button
                 key={key}
                 disabled={isLocked}
+                aria-label={`בחר: ${key === '1' ? match.homeTeam : key === '2' ? match.awayTeam : 'תיקו'}`}
                 onClick={() => addOrToggle({
                   matchId: match.id,
                   homeTeam: match.homeTeam,
@@ -73,7 +101,7 @@ export default function MatchCard({ match }: Props) {
                 className={`
                   flex flex-col items-center justify-center
                   min-w-[52px] min-h-[44px] rounded-lg border text-sm font-semibold
-                  transition-all duration-100 select-none
+                  transition-all duration-100 select-none transform-gpu
                   disabled:cursor-not-allowed
                   ${isSelected
                     ? 'bg-[--color-accent] text-white border-[--color-accent] scale-105'
@@ -81,7 +109,7 @@ export default function MatchCard({ match }: Props) {
                   }
                 `}
               >
-                <span className="text-xs text-current opacity-60">{label}</span>
+                <span className="text-xs text-gray-500">{label}</span>
                 <span>{odds.toFixed(2)}</span>
               </button>
             )
