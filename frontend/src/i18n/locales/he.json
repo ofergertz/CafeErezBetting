@@ -59,6 +59,7 @@
     "addRow": "הוסף שורה",
     "quickPick": "בחירה אקראית",
     "costPerRow": "עלות לשורה",
+    "totalCost": "סה\"כ עלות",
     "validation": "יש לבחור בדיוק 5 מספרים ייחודיים"
   },
   "lucky777": {
@@ -67,6 +68,7 @@
     "addRow": "הוסף שורה",
     "quickPick": "בחירה אקראית",
     "costPerRow": "עלות לשורה",
+    "totalCost": "סה\"כ עלות",
     "validation": "יש לבחור בדיוק 7 מספרים ייחודיים"
   },
   "toto": {
@@ -127,7 +129,8 @@
     "markSent": "סמן כנשלח",
     "anonymous": "אנונימי",
     "submittedAt": "הוגש ב",
-    "newForm": "טופס חדש התקבל!"
+    "newForm": "טופס חדש התקבל!",
+    "submitSuccess": "התקבל ✅"
   },
   "common": {
     "save": "שמור",

@@ -59,6 +59,7 @@
     "addRow": "Add row",
     "quickPick": "Quick pick",
     "costPerRow": "Cost per row",
+    "totalCost": "Total cost",
     "validation": "Pick exactly 5 unique numbers"
   },
   "lucky777": {
@@ -67,6 +68,7 @@
     "addRow": "Add row",
     "quickPick": "Quick pick",
     "costPerRow": "Cost per row",
+    "totalCost": "Total cost",
     "validation": "Pick exactly 7 unique numbers"
   },
   "toto": {
@@ -127,7 +129,8 @@
     "markSent": "Mark as sent",
     "anonymous": "Anonymous",
     "submittedAt": "Submitted at",
-    "newForm": "New form received!"
+    "newForm": "New form received!",
+    "submitSuccess": "Received ✅"
   },
   "common": {
     "save": "Save",
