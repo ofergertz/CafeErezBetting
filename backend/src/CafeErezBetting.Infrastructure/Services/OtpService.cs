@@ -13,9 +13,11 @@ public class OtpService : IOtpService
     private readonly ISmsService _sms;
     private readonly ILogger<OtpService> _logger;
 
-    private const int OtpTtlSeconds = 300;      // 5 minutes
-    private const int RateLimitTtlSeconds = 600; // 10 minutes
+    private const int OtpTtlSeconds = 300;       // 5 minutes
+    private const int RateLimitTtlSeconds = 600;  // 10 minutes
     private const int MaxSendsPerWindow = 3;
+    private const int MaxVerifyAttempts = 5;
+    private const int VerifyLockoutSeconds = 600; // 10 minutes
 
     public OtpService(IDistributedCache cache, ISmsService sms, ILogger<OtpService> logger)
     {
@@ -52,24 +54,58 @@ public class OtpService : IOtpService
 
     public async Task<bool> VerifyOtpAsync(string phone, string code)
     {
+        var attemptsKey = $"otp:attempts:{phone}";
+
+        // Check if locked out
+        var attemptsVal = await _cache.GetStringAsync(attemptsKey);
+        if (attemptsVal is not null && int.TryParse(attemptsVal, out var attempts) && attempts >= MaxVerifyAttempts)
+            return false;
+
         var json = await _cache.GetStringAsync($"otp:{phone}");
-        if (json is null) return false;
+        if (json is null)
+        {
+            await IncrementAttemptsAsync(attemptsKey);
+            return false;
+        }
 
         var session = JsonSerializer.Deserialize<OtpSession>(json);
-        if (session is null) return false;
-        if (session.UsedAt is not null) return false;  // already used
+        if (session is null)
+        {
+            await IncrementAttemptsAsync(attemptsKey);
+            return false;
+        }
+        if (session.UsedAt is not null)
+        {
+            await IncrementAttemptsAsync(attemptsKey);
+            return false;  // already used
+        }
 
-        if (!BC.Verify(code, session.CodeHash)) return false;
+        if (!BC.Verify(code, session.CodeHash))
+        {
+            await IncrementAttemptsAsync(attemptsKey);
+            return false;
+        }
 
-        // Mark as used
+        // Success: mark as used and reset attempt counter
         session.UsedAt = DateTime.UtcNow;
         var updated = JsonSerializer.Serialize(session);
         await _cache.SetStringAsync($"otp:{phone}", updated, new DistributedCacheEntryOptions
         {
             AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(OtpTtlSeconds)
         });
+        await _cache.RemoveAsync(attemptsKey);
 
         return true;
+    }
+
+    private async Task IncrementAttemptsAsync(string attemptsKey)
+    {
+        var val = await _cache.GetStringAsync(attemptsKey);
+        var count = val is null ? 1 : int.Parse(val) + 1;
+        await _cache.SetStringAsync(attemptsKey, count.ToString(), new DistributedCacheEntryOptions
+        {
+            AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(VerifyLockoutSeconds)
+        });
     }
 
     public async Task<bool> IsRateLimitedAsync(string phone)
