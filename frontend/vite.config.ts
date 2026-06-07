@@ -34,12 +34,14 @@ export default defineConfig({
     target: 'esnext',
     rollupOptions: {
       output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom', 'react-router-dom'],
-          i18n: ['react-i18next', 'i18next'],
-          query: ['@tanstack/react-query'],
-          forms: ['react-hook-form', 'zod', '@hookform/resolvers'],
-          signalr: ['@microsoft/signalr'],
+        manualChunks(id) {
+          if (id.includes('react-router-dom')) return 'vendor';
+          if (id.includes('react-dom')) return 'vendor';
+          if (id.includes('/react/')) return 'vendor';
+          if (id.includes('react-i18next') || id.includes('i18next')) return 'i18n';
+          if (id.includes('@tanstack/react-query')) return 'query';
+          if (id.includes('react-hook-form') || id.includes('@hookform') || id.includes('/zod/')) return 'forms';
+          if (id.includes('@microsoft/signalr')) return 'signalr';
         },
       },
     },
