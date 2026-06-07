@@ -32,9 +32,15 @@ jobs:
         run: dotnet build --configuration Release --no-restore
 
       - name: Install Swashbuckle CLI
-        run: dotnet tool install --global Swashbuckle.AspNetCore.Cli --version 6.9.0
+        run: dotnet tool install --global Swashbuckle.AspNetCore.Cli --version 7.3.2
 
       - name: Generate OpenAPI spec
+        env:
+          ASPNETCORE_ENVIRONMENT: Production
+          Jwt__Secret: ci-placeholder-secret-for-swagger-gen
+          ConnectionStrings__DefaultConnection: Host=localhost;Database=ci;Username=ci;Password=ci
+          ConnectionStrings__Redis: localhost:6379
+          Frontend__Url: http://localhost:5173
         run: |
           mkdir -p docs
           swagger tofile \
