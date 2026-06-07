@@ -100,7 +100,15 @@ jobs:
 
       - name: Check for breaking changes
         run: |
-          curl -L https://github.com/tufin/oasdiff/releases/latest/download/oasdiff_linux_amd64.tar.gz | tar xz
+          # Get latest oasdiff release URL dynamically (release assets use versioned filenames)
+          OASDIFF_URL=$(curl -sL "https://api.github.com/repos/tufin/oasdiff/releases/latest" \
+            | python3 -c "
+import json,sys
+d=json.load(sys.stdin)
+urls=[a['browser_download_url'] for a in d.get('assets',[]) if 'linux_amd64.tar.gz' in a['name']]
+print(urls[0])
+")
+          curl -L "$OASDIFF_URL" | tar xz
           chmod +x oasdiff
           ./oasdiff breaking docs/openapi-main.json docs/openapi.json --format text || true
           echo "ℹ️ Breaking changes check complete"
