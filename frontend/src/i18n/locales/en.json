@@ -98,6 +98,8 @@
     "totalDebt": "Total debt",
     "debts": "Debts",
     "addDebt": "Add debt",
+    "description": "Description",
+    "descriptionOptional": "Description (optional)",
     "category": "Category",
     "amount": "Amount",
     "paid": "Paid",
@@ -119,6 +121,11 @@
   },
   "forms": {
     "title": "Forms Queue",
+    "customer": "Customer",
+    "type": "Type",
+    "actions": "Actions",
+    "filterAll": "All",
+    "filterDate": "Date",
     "status": {
       "received": "Received",
       "approved": "Approved",
@@ -149,6 +156,7 @@
     "search": "Search",
     "filter": "Filter",
     "noData": "No data",
+    "status": "Status",
     "syncStatus": "Sync status",
     "lastSync": "Last sync"
   },
