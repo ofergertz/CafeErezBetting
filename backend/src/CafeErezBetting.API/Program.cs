@@ -1,4 +1,5 @@
 using System.Text;
+using StackExchange.Redis;
 using Microsoft.Extensions.Caching.Distributed;
 using CafeErezBetting.API.Hubs;
 using CafeErezBetting.Core.Entities;
@@ -30,8 +31,11 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // ─── Redis ───────────────────────────────────────────────────────────────────
+var redisConnectionString = builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379";
+builder.Services.AddSingleton<IConnectionMultiplexer>(
+    ConnectionMultiplexer.Connect(redisConnectionString));
 builder.Services.AddStackExchangeRedisCache(options =>
-    options.Configuration = builder.Configuration.GetConnectionString("Redis"));
+    options.Configuration = redisConnectionString);
 
 // ─── HttpClient (for scraper) ────────────────────────────────────────────────
 builder.Services.AddHttpClient();
