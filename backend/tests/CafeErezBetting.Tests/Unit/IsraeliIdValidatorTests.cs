@@ -1,3 +1,5 @@
+using Xunit;
+
 namespace CafeErezBetting.Tests.Unit;
 
 public class IsraeliIdValidatorTests
