@@ -38,8 +38,8 @@ export default function LoginPage() {
       await api.post('/api/auth/otp/send', data)
       setPhone(data.phone)
       setOtpStep('code')
-    } catch (e: any) {
-      setError(e.message)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('common.error'))
     } finally { setLoading(false) }
   }
 
@@ -51,7 +51,7 @@ export default function LoginPage() {
       )
       setAuth(res.user, res.token)
       navigate('/')
-    } catch (e: any) {
+    } catch {
       setError(t('auth.invalidOtp'))
     } finally { setLoading(false) }
   }
@@ -64,7 +64,7 @@ export default function LoginPage() {
       )
       setAuth(res.user, res.token)
       navigate('/')
-    } catch (e: any) {
+    } catch {
       setError(t('auth.invalidCredentials'))
     } finally { setLoading(false) }
   }
