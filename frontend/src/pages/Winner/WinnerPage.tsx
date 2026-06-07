@@ -7,6 +7,9 @@ import { useMatchesHub } from '@/hooks/useSignalR'
 import type { WinnerMatch } from '@/types'
 import BetSlip from './BetSlip'
 import MatchCard from './MatchCard'
+import { CalendarClock, Trophy } from 'lucide-react'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { ErrorState } from '@/components/ui/ErrorState'
 
 export default function WinnerPage() {
   const { t } = useTranslation()
@@ -37,9 +40,8 @@ export default function WinnerPage() {
   )
 
   if (isError) return (
-    <div className="card p-8 text-center text-red-500">
-      <p className="text-lg mb-2">⚠️</p>
-      <p className="text-sm">{t('common.error')}</p>
+    <div className="card">
+      <ErrorState message={t('common.error')} />
     </div>
   )
 
@@ -50,9 +52,17 @@ export default function WinnerPage() {
     <div className="flex gap-6 relative">
       {/* ── Matches list ─────────────────────────────────── */}
       <div className="flex-1 min-w-0">
+        <div className="bg-gradient-to-l from-[#2d6a4f] to-[#52b788] rounded-xl p-4 mb-6 flex items-center gap-3">
+          <Trophy size={28} className="text-white" />
+          <div>
+            <h2 className="text-white font-bold text-lg">ווינר</h2>
+            <p className="text-green-50 text-sm">הימור על תוצאות כדורגל</p>
+          </div>
+        </div>
+
         <div className="flex items-center justify-between mb-4">
           <h1 className="font-display font-bold text-xl text-[--color-accent]">
-            ⚽ {t('winner.title')}
+            {t('winner.title')}
           </h1>
 
           {/* Mobile bet slip toggle */}
@@ -85,8 +95,8 @@ export default function WinnerPage() {
         {/* Upcoming matches */}
         {upcoming.length > 0 && (
           <section>
-            <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wide mb-3">
-              🗓️ {t('winner.title')}
+            <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5">
+              <CalendarClock size={14} /> {t('winner.title')}
             </h2>
             <div className="flex flex-col gap-3">
               {upcoming.map(m => <MatchCard key={m.id} match={m} />)}
@@ -95,9 +105,8 @@ export default function WinnerPage() {
         )}
 
         {matches.length === 0 && (
-          <div className="card p-12 text-center text-gray-400">
-            <p className="text-3xl mb-3">⚽</p>
-            <p>{t('common.noData')}</p>
+          <div className="card">
+            <EmptyState icon={Trophy} message={t('common.noData')} />
           </div>
         )}
       </div>

@@ -4,6 +4,7 @@ import { useQuery, useMutation } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import type { TotoMatch, TotoPayload, WinnerPick, FormSubmittedDto } from '@/types'
 import { SubmitSuccessOverlay } from '@/components/forms/SubmitSuccessOverlay'
+import { Trophy } from 'lucide-react'
 
 interface TotoRound {
   roundId: string
@@ -76,6 +77,14 @@ export default function TotoPage() {
   return (
     <div className="max-w-5xl mx-auto space-y-4 pb-8">
       <SubmitSuccessOverlay visible={showSuccess} />
+
+      <div className="bg-gradient-to-l from-blue-700 to-blue-500 rounded-xl p-4 flex items-center gap-3">
+        <Trophy size={28} className="text-white" />
+        <div>
+          <h2 className="text-white font-bold text-lg">טוטו</h2>
+          <p className="text-blue-100 text-sm">נחש את תוצאות המשחקים</p>
+        </div>
+      </div>
 
       <div className="card p-4 flex items-center justify-between flex-wrap gap-2">
         <div>

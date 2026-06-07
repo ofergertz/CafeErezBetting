@@ -7,6 +7,7 @@ import { z } from 'zod'
 import { api } from '@/lib/api'
 import { useAuthStore } from '@/store/authStore'
 import BarcodeScanner from '@/components/store/BarcodeScanner'
+import { Pencil, Trash2, ShoppingBag } from 'lucide-react'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 interface Product {
@@ -272,27 +273,29 @@ function ProductCard({
           className="w-full h-40 object-cover rounded-lg mb-3"
         />
       ) : (
-        <div className="w-full h-40 bg-gray-100 rounded-lg mb-3 flex items-center justify-center text-4xl">
-          🛍️
+        <div className="w-full h-40 bg-gray-100 rounded-lg mb-3 flex items-center justify-center text-gray-300">
+          <ShoppingBag size={48} strokeWidth={1} />
         </div>
       )}
 
       {/* Admin overlay */}
       {isAdmin && (
-        <div className="absolute top-2 left-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="absolute top-2 left-2 flex gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
           <button
             onClick={() => onEdit(product)}
-            className="bg-white/90 hover:bg-white rounded-full p-1.5 shadow text-sm leading-none"
+            className="bg-white/90 hover:bg-white rounded-full p-1.5 shadow leading-none text-gray-600 hover:text-[#2d6a4f] focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2d6a4f]"
             title={t('store.editProduct')}
+            aria-label={t('store.editProduct')}
           >
-            ✏️
+            <Pencil size={14} />
           </button>
           <button
             onClick={() => onDelete(product)}
-            className="bg-white/90 hover:bg-white rounded-full p-1.5 shadow text-sm leading-none"
+            className="bg-white/90 hover:bg-white rounded-full p-1.5 shadow leading-none text-gray-600 hover:text-red-500 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
             title={t('store.deleteProduct')}
+            aria-label={t('store.deleteProduct')}
           >
-            🗑️
+            <Trash2 size={14} />
           </button>
         </div>
       )}
@@ -320,7 +323,7 @@ function ProductCard({
         </span>
       </div>
       {product.barcode && (
-        <p className="text-xs text-gray-400 mt-1">🔖 {product.barcode}</p>
+        <p className="text-xs text-gray-400 mt-1">{product.barcode}</p>
       )}
     </div>
   )
@@ -362,10 +365,10 @@ export default function StorePage() {
           {isAdmin && (
             <button
               onClick={() => setScannerMode(v => !v)}
-              className={`btn ${scannerMode ? 'btn-primary' : 'btn-secondary'}`}
+              className={`btn ${scannerMode ? 'btn-primary' : 'btn-secondary'} flex items-center gap-1.5`}
               title="מצב סריקה"
             >
-              📷 מצב סריקה
+              מצב סריקה
             </button>
           )}
           {isAdmin && (
@@ -401,9 +404,9 @@ export default function StorePage() {
 
       {/* Empty */}
       {!isLoading && !isError && products?.length === 0 && (
-        <div className="text-center py-16 text-gray-400">
-          <p className="text-4xl mb-3">🛍️</p>
-          <p>אין מוצרים להצגה</p>
+        <div className="flex flex-col items-center justify-center py-16 text-gray-300">
+          <ShoppingBag size={48} strokeWidth={1} />
+          <p className="text-gray-400 mt-3">אין מוצרים להצגה</p>
         </div>
       )}
 

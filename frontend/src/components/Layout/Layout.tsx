@@ -2,6 +2,7 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/store/authStore'
 import MobileNav from '@/components/Layout/MobileNav'
+import Logo from '@/components/ui/Logo'
 
 const LANGUAGES = [
   { code: 'he', label: 'עב', flag: '🇮🇱' },
@@ -40,8 +41,8 @@ export default function Layout() {
       <header className="bg-white border-b border-[--color-border] shadow-sm sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
           {/* Logo */}
-          <div className="font-display font-bold text-[--color-accent] text-lg whitespace-nowrap">
-            ☕ קפה ארז
+          <div className="flex-shrink-0">
+            <Logo size="header" />
           </div>
 
           {/* Nav tabs — desktop */}

@@ -5,6 +5,7 @@ import { useBetSlipStore } from '@/store/betSlipStore'
 import { useAuthStore } from '@/store/authStore'
 import { api } from '@/lib/api'
 import type { FormSubmittedDto } from '@/types'
+import { Crosshair, CheckCircle, X } from 'lucide-react'
 
 interface Props { onSubmit?: () => void }
 
@@ -42,7 +43,9 @@ export default function BetSlip({ onSubmit }: Props) {
 
   if (submitted) return (
     <div className="card p-6 text-center">
-      <div className="text-4xl mb-3">✅</div>
+      <div className="flex justify-center mb-3">
+        <CheckCircle size={40} className="text-green-500" />
+      </div>
       <p className="font-bold text-[--color-success]">{t('forms.status.received')}</p>
       <p className="text-xs text-gray-400 mt-1">{t('forms.newForm')}</p>
     </div>
@@ -50,9 +53,11 @@ export default function BetSlip({ onSubmit }: Props) {
 
   if (items.length === 0) return (
     <div className="card p-6 text-center text-gray-400">
-      <p className="text-3xl mb-2">🎯</p>
+      <div className="flex justify-center mb-2">
+        <Crosshair size={40} strokeWidth={1.5} />
+      </div>
       <p className="text-sm">{t('winner.betSlip')}</p>
-      <p className="text-xs mt-1 opacity-60">לחץ על יחס להוספה</p>
+      <p className="text-xs mt-1 text-gray-400">לחץ על יחס להוספה</p>
     </div>
   )
 
@@ -83,9 +88,10 @@ export default function BetSlip({ onSubmit }: Props) {
             </div>
             <button
               onClick={() => remove(item.matchId)}
-              className="text-gray-300 hover:text-red-500 text-lg leading-none flex-shrink-0"
+              aria-label="הסר הימור"
+              className="text-gray-300 hover:text-red-500 leading-none flex-shrink-0 flex items-center justify-center w-7 h-7 rounded transition-colors"
             >
-              ✕
+              <X size={16} />
             </button>
           </div>
         ))}

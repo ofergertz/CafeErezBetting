@@ -118,7 +118,6 @@ var app = builder.Build();
 // ─── Middleware ───────────────────────────────────────────────────────────────
 app.UseSerilogRequestLogging();
 
-// Swagger: enable in Development OR when SWAGGER_ONLY=true (used by CI to generate spec without DB)
 var swaggerOnly = bool.Parse(Environment.GetEnvironmentVariable("SWAGGER_ONLY") ?? "false");
 
 if (app.Environment.IsDevelopment() || swaggerOnly)
@@ -129,21 +128,28 @@ if (app.Environment.IsDevelopment() || swaggerOnly)
 
 if (app.Environment.IsDevelopment() && !swaggerOnly)
 {
-    using var scope = app.Services.CreateScope();
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    await db.Database.MigrateAsync();
-
-    // Seed default admin if none exist
-    if (!await db.AdminUsers.AnyAsync())
+    try
     {
-        db.AdminUsers.Add(new AdminUser
+        using var scope = app.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        await db.Database.MigrateAsync();
+
+        // Seed default admin if none exist
+        if (!await db.AdminUsers.AnyAsync())
         {
-            Username = "admin",
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword("Admin1234!"),
-            DisplayName = "מנהל",
-            IsActive = true,
-        });
-        await db.SaveChangesAsync();
+            db.AdminUsers.Add(new AdminUser
+            {
+                Username = "admin",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("Admin1234!"),
+                DisplayName = "מנהל",
+                IsActive = true,
+            });
+            await db.SaveChangesAsync();
+        }
+    }
+    catch (Exception ex)
+    {
+        Log.Warning(ex, "Database migration/seeding skipped (no DB connection available)");
     }
 }
 

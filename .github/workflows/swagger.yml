@@ -14,9 +14,6 @@ jobs:
   validate-swagger:
     name: Validate Swagger / Generate OpenAPI
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: backend
 
     steps:
       - uses: actions/checkout@v4
@@ -25,41 +22,39 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
-      - name: Restore
-        run: dotnet restore
-
-      - name: Build
-        run: dotnet build --no-restore -c Release
-
-      - name: Start API + export OpenAPI spec
-        working-directory: .
+      - name: Restore & Build
+        working-directory: backend
         run: |
-          # SWAGGER_ONLY=true: serves Swagger but skips DB migration
+          dotnet restore
+          dotnet build --no-restore -c Release
+
+      - name: Start API with SWAGGER_ONLY=true (no DB needed)
+        run: |
           ASPNETCORE_ENVIRONMENT=Development \
           SWAGGER_ONLY=true \
-          ConnectionStrings__DefaultConnection="Host=localhost;Database=test;Username=test;Password=test" \
+          ConnectionStrings__DefaultConnection="Host=localhost;Database=ci;Username=ci;Password=ci" \
           ConnectionStrings__Redis="localhost:6379" \
-          Jwt__Secret="test-secret-at-least-32-chars-long-here" \
-          dotnet run --project backend/src/CafeErezBetting.API \
-            --no-build -c Release &
+          Jwt__Secret="ci-placeholder-secret-for-swagger-gen-at-least-32-chars" \
+          Frontend__Url="http://localhost:5173" \
+          dotnet run --project backend/src/CafeErezBetting.API --no-build -c Release &
           API_PID=$!
 
-          # Wait for API to start (up to 30s)
+          # Wait up to 30s for API to be ready
           for i in $(seq 1 30); do
             if curl -sf http://localhost:5000/swagger/v1/swagger.json -o /dev/null 2>&1; then
-              echo "API ready after ${i}s"
+              echo "✅ API ready after ${i}s"
               break
             fi
+            echo "Waiting... ${i}s"
             sleep 1
           done
 
-          # Export OpenAPI spec
+          # Export spec
           mkdir -p docs
           curl -sf http://localhost:5000/swagger/v1/swagger.json -o docs/openapi.json
           kill $API_PID 2>/dev/null || true
 
       - name: Validate OpenAPI JSON
-        working-directory: .
         run: |
           python3 -c "
           import json, sys
@@ -82,6 +77,7 @@ jobs:
     name: API Breaking Changes Check
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
+    needs: validate-swagger
 
     steps:
       - uses: actions/checkout@v4
@@ -90,9 +86,11 @@ jobs:
         run: |
           mkdir -p docs
           curl -sf https://raw.githubusercontent.com/ofergertz/CafeErezBetting/main/docs/openapi.json \
-            -o docs/openapi-main.json || echo '{"openapi":"3.0.0","info":{"title":"baseline","version":"0"},"paths":{}}' > docs/openapi-main.json
+            -o docs/openapi-main.json \
+            || echo '{"openapi":"3.0.0","info":{"title":"baseline","version":"0"},"paths":{}}' \
+            > docs/openapi-main.json
 
-      - name: Download current spec from artifacts
+      - name: Download current spec
         uses: dawidd6/action-download-artifact@v6
         with:
           name: openapi-spec
@@ -100,13 +98,11 @@ jobs:
           branch: ${{ github.head_ref }}
         continue-on-error: true
 
-      - name: Check for breaking changes (oasdiff)
+      - name: Check for breaking changes
         run: |
           # Get latest oasdiff release URL dynamically (release assets use versioned filenames)
           OASDIFF_URL=$(curl -sL "https://api.github.com/repos/tufin/oasdiff/releases/latest" | python3 -c "import json,sys; d=json.load(sys.stdin); urls=[a['browser_download_url'] for a in d.get('assets',[]) if 'linux_amd64.tar.gz' in a['name']]; print(urls[0])")
           curl -L "$OASDIFF_URL" | tar xz
           chmod +x oasdiff
-
-          # Run breaking change check
           ./oasdiff breaking docs/openapi-main.json docs/openapi.json --format text || true
-          echo "ℹ️ Breaking changes check complete (non-blocking on first run)"
+          echo "ℹ️ Breaking changes check complete"
