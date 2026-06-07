@@ -16,6 +16,14 @@ public class ProductsController(IProductService productService) : ControllerBase
         return Ok(products);
     }
 
+    [HttpGet("barcode/{barcode}")]
+    public async Task<IActionResult> GetByBarcode(string barcode)
+    {
+        var product = await productService.GetByBarcodeAsync(barcode);
+        if (product is null) return NotFound(new { message = "Product not found." });
+        return Ok(product);
+    }
+
     [HttpPost]
     [Authorize(Roles = "admin")]
     public async Task<IActionResult> Create([FromBody] CreateProductDto dto)
@@ -28,6 +36,10 @@ public class ProductsController(IProductService productService) : ControllerBase
         catch (ArgumentException ex)
         {
             return BadRequest(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
         }
     }
 
@@ -47,6 +59,10 @@ public class ProductsController(IProductService productService) : ControllerBase
         catch (ArgumentException ex)
         {
             return BadRequest(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
         }
     }
 

@@ -148,6 +148,7 @@ export interface Product {
   imageUrl?: string
   inStock: boolean
   createdAt: string
+  barcode?: string
 }
 
 // ─── API Response ────────────────────────────────────────────────────────────

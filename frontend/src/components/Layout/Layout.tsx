@@ -1,6 +1,7 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/store/authStore'
+import MobileNav from '@/components/Layout/MobileNav'
 
 const LANGUAGES = [
   { code: 'he', label: 'עב', flag: '🇮🇱' },
@@ -21,9 +22,10 @@ export default function Layout() {
     { path: '/777',       label: t('nav.lucky777') },
     { path: '/store',     label: t('nav.store') },
     ...(isAdmin() ? [
-      { path: '/customers', label: t('nav.customers') },
-      { path: '/forms',     label: t('nav.forms') },
-      { path: '/kiosk',     label: t('nav.kiosk') },
+      { path: '/customers',  label: t('nav.customers') },
+      { path: '/forms',      label: t('nav.forms') },
+      { path: '/kiosk',      label: t('nav.kiosk') },
+      { path: '/audit-logs', label: t('nav.auditLogs') },
     ] : []),
   ]
 
@@ -94,9 +96,10 @@ export default function Layout() {
       </header>
 
       {/* Main */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-6">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-6 pb-20 md:pb-6">
         <Outlet />
       </main>
+      <MobileNav />
     </div>
   )
 }

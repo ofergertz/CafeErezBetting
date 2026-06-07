@@ -59,6 +59,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         {
             e.Property(p => p.Price).HasPrecision(18, 2);
             e.Property(p => p.Name).HasMaxLength(200);
+            e.Property(p => p.Barcode).HasMaxLength(50);
+            e.HasIndex(p => p.Barcode).IsUnique().HasFilter("\"Barcode\" IS NOT NULL");
         });
 
         modelBuilder.Entity<AuditLog>(e =>

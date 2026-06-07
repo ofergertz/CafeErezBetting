@@ -8,7 +8,8 @@
     "store": "חנות",
     "customers": "ניהול לקוחות",
     "forms": "טפסים למשלוח",
-    "kiosk": "מסך קיוסק"
+    "kiosk": "מסך קיוסק",
+    "auditLogs": "לוג פעולות"
   },
   "auth": {
     "login": "כניסה",
@@ -159,6 +160,15 @@
     "status": "סטטוס",
     "syncStatus": "סטטוס סנכרון",
     "lastSync": "סנכרון אחרון"
+  },
+  "auditLogs": {
+    "title": "לוג פעולות",
+    "user": "משתמש",
+    "action": "פעולה",
+    "ip": "כתובת IP",
+    "timestamp": "זמן",
+    "from": "מתאריך",
+    "to": "עד תאריך"
   },
   "validation": {
     "required": "שדה חובה",
