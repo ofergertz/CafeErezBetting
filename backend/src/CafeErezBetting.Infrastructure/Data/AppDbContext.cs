@@ -1,3 +1,4 @@
+using System.Text.Json;
 using CafeErezBetting.Core.Entities;
 using Microsoft.EntityFrameworkCore;
 
@@ -5,6 +6,8 @@ namespace CafeErezBetting.Infrastructure.Data;
 
 public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
 {
+    // Expression trees cannot use optional args — wrap in static helper
+    private static JsonDocument ParseJson(string json) => JsonDocument.Parse(json);
     public DbSet<Customer>    Customers    => Set<Customer>();
     public DbSet<DebtRecord>  DebtRecords  => Set<DebtRecord>();
     public DbSet<BettingForm> BettingForms => Set<BettingForm>();
@@ -43,7 +46,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
              .HasColumnType("jsonb")
              .HasConversion(
                  v => v.RootElement.GetRawText(),
-                 v => System.Text.Json.JsonDocument.Parse(v)
+                 v => ParseJson(v)
              );
             e.HasOne(f => f.Customer)
              .WithMany(c => c.Forms)
@@ -63,7 +66,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
              .HasColumnType("jsonb")
              .HasConversion(
                  v => v.RootElement.GetRawText(),
-                 v => System.Text.Json.JsonDocument.Parse(v)
+                 v => ParseJson(v)
              );
             e.Property(a => a.Action).HasMaxLength(100);
             e.Property(a => a.Role).HasMaxLength(20);
