@@ -32,7 +32,7 @@ jobs:
         run: dotnet build --configuration Release --no-restore
 
       - name: Install Swashbuckle CLI
-        run: dotnet tool install --global Swashbuckle.AspNetCore.Cli --version 6.9.0
+        run: dotnet tool install --global Swashbuckle.AspNetCore.Cli --version 6.5.0
 
       - name: Generate OpenAPI spec
         run: |
