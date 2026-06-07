@@ -43,11 +43,29 @@ public class AuthController : ControllerBase
     [HttpPost("admin/login")]
     public async Task<IActionResult> AdminLogin([FromBody] AdminLoginRequest req)
     {
+        var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        var rlKey = $"rl:admin:{ip}";
+        var rlVal = await _cache.GetStringAsync(rlKey);
+        if (rlVal is not null && int.TryParse(rlVal, out var attempts) && attempts >= 5)
+            return StatusCode(429, new { message = "auth.rateLimited" });
+
         var user = await _db.AdminUsers
             .FirstOrDefaultAsync(u => u.Username.ToLower() == req.Username.ToLower() && u.IsActive);
 
         if (user is null || !BC.Verify(req.Password, user.PasswordHash))
+        {
+            // Increment IP-based rate limit counter (60s window)
+            var currentVal = await _cache.GetStringAsync(rlKey);
+            var count = currentVal is null ? 1 : int.Parse(currentVal) + 1;
+            await _cache.SetStringAsync(rlKey, count.ToString(), new DistributedCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(60)
+            });
             return Unauthorized(new { message = "auth.invalidCredentials" });
+        }
+
+        // Successful login: clear rate limit counter
+        await _cache.RemoveAsync(rlKey);
 
         var token = _jwt.GenerateAdminToken(user);
 
