@@ -65,6 +65,10 @@ public class FormsService(
         var form = await db.BettingForms.FindAsync([formId], ct)
             ?? throw new KeyNotFoundException($"Form {formId} not found");
 
+        if ((int)newStatus <= (int)form.Status)
+            throw new InvalidOperationException(
+                $"Cannot move form status from {form.Status} to {newStatus}: status transitions must be forward-only (Received=0 → Approved=1 → Sent=2)");
+
         form.Status = newStatus;
 
         switch (newStatus)
