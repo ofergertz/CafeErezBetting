@@ -1,0 +1,160 @@
+{
+  "nav": {
+    "winner": "ווינר",
+    "toto": "טוטו",
+    "lotto": "לוטו",
+    "chance": "צ'אנס",
+    "lucky777": "777",
+    "store": "חנות",
+    "customers": "ניהול לקוחות",
+    "forms": "טפסים למשלוח",
+    "kiosk": "מסך קיוסק"
+  },
+  "auth": {
+    "login": "כניסה",
+    "logout": "יציאה",
+    "phone": "מספר טלפון",
+    "otp": "קוד אימות",
+    "sendOtp": "שלח קוד",
+    "verifyOtp": "אמת קוד",
+    "adminLogin": "כניסת אדמין",
+    "username": "שם משתמש",
+    "password": "סיסמה",
+    "otpSent": "קוד נשלח ל-{{phone}}",
+    "otpExpiry": "הקוד תקף ל-5 דקות",
+    "invalidOtp": "קוד שגוי או פג תוקף",
+    "invalidCredentials": "שם משתמש או סיסמה שגויים"
+  },
+  "winner": {
+    "title": "ווינר",
+    "live": "חי",
+    "betSlip": "סל הימורים",
+    "stake": "סכום הימור",
+    "totalOdds": "יחס כולל",
+    "potentialWin": "זכייה פוטנציאלית",
+    "submit": "שלח טופס",
+    "clearAll": "נקה הכל",
+    "pick1": "1",
+    "pickX": "X",
+    "pick2": "2",
+    "matchSuspended": "המשחק הושעה",
+    "matchFinished": "המשחק הסתיים",
+    "matchLive": "חי עכשיו",
+    "minOneBet": "יש לבחור לפחות הימור אחד",
+    "minStake": "יש להזין סכום הימור"
+  },
+  "lotto": {
+    "title": "לוטו",
+    "numbers": "בחר 6 מספרים (1–37)",
+    "strong": "מספר חזק (1–7)",
+    "addRow": "הוסף שורה",
+    "quickPick": "בחירה אקראית",
+    "costPerRow": "עלות לשורה",
+    "totalCost": "סה\"כ עלות",
+    "validation": "יש לבחור בדיוק 6 מספרים ייחודיים + מספר חזק"
+  },
+  "chance": {
+    "title": "צ'אנס",
+    "numbers": "בחר 5 מספרים (1–36)",
+    "addRow": "הוסף שורה",
+    "quickPick": "בחירה אקראית",
+    "costPerRow": "עלות לשורה",
+    "validation": "יש לבחור בדיוק 5 מספרים ייחודיים"
+  },
+  "lucky777": {
+    "title": "777",
+    "numbers": "בחר 7 מספרים (1–70)",
+    "addRow": "הוסף שורה",
+    "quickPick": "בחירה אקראית",
+    "costPerRow": "עלות לשורה",
+    "validation": "יש לבחור בדיוק 7 מספרים ייחודיים"
+  },
+  "toto": {
+    "title": "טוטו",
+    "round": "סיבוב {{round}}",
+    "addColumn": "הוסף עמודה",
+    "fillAll": "יש למלא את כל המשחקים",
+    "maxColumns": "מקסימום 14 עמודות"
+  },
+  "store": {
+    "title": "חנות",
+    "addProduct": "הוסף מוצר",
+    "editProduct": "ערוך מוצר",
+    "deleteProduct": "מחק מוצר",
+    "price": "מחיר",
+    "inStock": "במלאי",
+    "outOfStock": "אזל מהמלאי",
+    "confirmDelete": "האם אתה בטוח שברצונך למחוק מוצר זה?"
+  },
+  "customers": {
+    "title": "ניהול לקוחות",
+    "addCustomer": "הוסף לקוח",
+    "firstName": "שם פרטי",
+    "lastName": "שם משפחה",
+    "idNumber": "תעודת זהות",
+    "phone": "טלפון",
+    "totalDebt": "סה\"כ חוב",
+    "debts": "חובות",
+    "addDebt": "הוסף חוב",
+    "category": "קטגוריה",
+    "amount": "סכום",
+    "paid": "שולם",
+    "balance": "יתרה",
+    "status": {
+      "open": "פתוח",
+      "partial": "שולם חלקית",
+      "settled": "סגור"
+    },
+    "categories": {
+      "store": "חנות",
+      "winner": "ווינר",
+      "toto": "טוטו",
+      "lotto": "לוטו",
+      "chance": "צ'אנס",
+      "777": "777",
+      "other": "אחר"
+    }
+  },
+  "forms": {
+    "title": "טפסים למשלוח",
+    "status": {
+      "received": "התקבל",
+      "approved": "אושר",
+      "sent": "נשלח"
+    },
+    "acknowledge": "קבלתי ✓",
+    "approve": "אשר",
+    "markSent": "סמן כנשלח",
+    "anonymous": "אנונימי",
+    "submittedAt": "הוגש ב",
+    "newForm": "טופס חדש התקבל!"
+  },
+  "common": {
+    "save": "שמור",
+    "cancel": "בטל",
+    "delete": "מחק",
+    "edit": "ערוך",
+    "add": "הוסף",
+    "submit": "שלח",
+    "loading": "טוען...",
+    "error": "אירעה שגיאה",
+    "confirm": "אשר",
+    "close": "סגור",
+    "currency": "₪",
+    "yes": "כן",
+    "no": "לא",
+    "search": "חיפוש",
+    "filter": "סינון",
+    "noData": "אין נתונים",
+    "syncStatus": "סטטוס סנכרון",
+    "lastSync": "סנכרון אחרון"
+  },
+  "validation": {
+    "required": "שדה חובה",
+    "invalidPhone": "מספר טלפון לא תקין (050/052/053/054/055/058)",
+    "invalidId": "תעודת זהות לא תקינה",
+    "positiveAmount": "הסכום חייב להיות חיובי",
+    "maxDecimals": "עד 2 ספרות עשרוניות",
+    "exceedsBalance": "הסכום עולה על יתרת החוב"
+  }
+}

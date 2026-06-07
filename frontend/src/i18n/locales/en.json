@@ -1,0 +1,160 @@
+{
+  "nav": {
+    "winner": "Winner",
+    "toto": "Toto",
+    "lotto": "Lotto",
+    "chance": "Chance",
+    "lucky777": "777",
+    "store": "Store",
+    "customers": "Customers",
+    "forms": "Forms Queue",
+    "kiosk": "Kiosk Screen"
+  },
+  "auth": {
+    "login": "Login",
+    "logout": "Logout",
+    "phone": "Phone number",
+    "otp": "Verification code",
+    "sendOtp": "Send code",
+    "verifyOtp": "Verify code",
+    "adminLogin": "Admin login",
+    "username": "Username",
+    "password": "Password",
+    "otpSent": "Code sent to {{phone}}",
+    "otpExpiry": "Code valid for 5 minutes",
+    "invalidOtp": "Invalid or expired code",
+    "invalidCredentials": "Invalid username or password"
+  },
+  "winner": {
+    "title": "Winner",
+    "live": "LIVE",
+    "betSlip": "Bet Slip",
+    "stake": "Stake",
+    "totalOdds": "Total odds",
+    "potentialWin": "Potential win",
+    "submit": "Submit form",
+    "clearAll": "Clear all",
+    "pick1": "1",
+    "pickX": "X",
+    "pick2": "2",
+    "matchSuspended": "Match suspended",
+    "matchFinished": "Match finished",
+    "matchLive": "Live now",
+    "minOneBet": "Select at least one bet",
+    "minStake": "Enter a stake amount"
+  },
+  "lotto": {
+    "title": "Lotto",
+    "numbers": "Pick 6 numbers (1–37)",
+    "strong": "Strong number (1–7)",
+    "addRow": "Add row",
+    "quickPick": "Quick pick",
+    "costPerRow": "Cost per row",
+    "totalCost": "Total cost",
+    "validation": "Pick exactly 6 unique numbers + strong number"
+  },
+  "chance": {
+    "title": "Chance",
+    "numbers": "Pick 5 numbers (1–36)",
+    "addRow": "Add row",
+    "quickPick": "Quick pick",
+    "costPerRow": "Cost per row",
+    "validation": "Pick exactly 5 unique numbers"
+  },
+  "lucky777": {
+    "title": "777",
+    "numbers": "Pick 7 numbers (1–70)",
+    "addRow": "Add row",
+    "quickPick": "Quick pick",
+    "costPerRow": "Cost per row",
+    "validation": "Pick exactly 7 unique numbers"
+  },
+  "toto": {
+    "title": "Toto",
+    "round": "Round {{round}}",
+    "addColumn": "Add column",
+    "fillAll": "Fill all matches",
+    "maxColumns": "Maximum 14 columns"
+  },
+  "store": {
+    "title": "Store",
+    "addProduct": "Add product",
+    "editProduct": "Edit product",
+    "deleteProduct": "Delete product",
+    "price": "Price",
+    "inStock": "In stock",
+    "outOfStock": "Out of stock",
+    "confirmDelete": "Are you sure you want to delete this product?"
+  },
+  "customers": {
+    "title": "Customer Management",
+    "addCustomer": "Add customer",
+    "firstName": "First name",
+    "lastName": "Last name",
+    "idNumber": "ID number",
+    "phone": "Phone",
+    "totalDebt": "Total debt",
+    "debts": "Debts",
+    "addDebt": "Add debt",
+    "category": "Category",
+    "amount": "Amount",
+    "paid": "Paid",
+    "balance": "Balance",
+    "status": {
+      "open": "Open",
+      "partial": "Partially paid",
+      "settled": "Settled"
+    },
+    "categories": {
+      "store": "Store",
+      "winner": "Winner",
+      "toto": "Toto",
+      "lotto": "Lotto",
+      "chance": "Chance",
+      "777": "777",
+      "other": "Other"
+    }
+  },
+  "forms": {
+    "title": "Forms Queue",
+    "status": {
+      "received": "Received",
+      "approved": "Approved",
+      "sent": "Sent"
+    },
+    "acknowledge": "Got it ✓",
+    "approve": "Approve",
+    "markSent": "Mark as sent",
+    "anonymous": "Anonymous",
+    "submittedAt": "Submitted at",
+    "newForm": "New form received!"
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "add": "Add",
+    "submit": "Submit",
+    "loading": "Loading...",
+    "error": "An error occurred",
+    "confirm": "Confirm",
+    "close": "Close",
+    "currency": "₪",
+    "yes": "Yes",
+    "no": "No",
+    "search": "Search",
+    "filter": "Filter",
+    "noData": "No data",
+    "syncStatus": "Sync status",
+    "lastSync": "Last sync"
+  },
+  "validation": {
+    "required": "Required",
+    "invalidPhone": "Invalid phone (050/052/053/054/055/058)",
+    "invalidId": "Invalid ID number",
+    "positiveAmount": "Amount must be positive",
+    "maxDecimals": "Up to 2 decimal places",
+    "exceedsBalance": "Amount exceeds remaining balance"
+  }
+}
