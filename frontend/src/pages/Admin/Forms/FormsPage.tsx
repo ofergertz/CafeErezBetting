@@ -94,7 +94,7 @@ export default function FormsPage() {
       <div className="bg-white rounded-xl shadow p-4 mb-4 flex flex-wrap gap-3 items-end">
         {/* Status filter */}
         <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1">{t('common.filter')} סטטוס</label>
+          <label className="block text-xs font-medium text-gray-500 mb-1">{t('common.filter')} {t('common.status')}</label>
           <select
             className="border rounded-lg px-3 py-2 text-sm"
             value={filterStatus}
@@ -109,7 +109,7 @@ export default function FormsPage() {
 
         {/* Type filter */}
         <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1">{t('common.filter')} סוג</label>
+          <label className="block text-xs font-medium text-gray-500 mb-1">{t('common.filter')} {t('forms.type')}</label>
           <select
             className="border rounded-lg px-3 py-2 text-sm"
             value={filterType}
@@ -139,7 +139,7 @@ export default function FormsPage() {
             onClick={() => { setFilterStatus(''); setFilterType(''); setFilterDate('') }}
             className="text-sm text-gray-500 underline"
           >
-            נקה סינון
+            {t('common.clearFilter')}
           </button>
         )}
       </div>

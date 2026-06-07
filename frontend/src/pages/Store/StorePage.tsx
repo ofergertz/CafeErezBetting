@@ -215,7 +215,7 @@ function ProductModal({
               disabled={isPending}
               className="btn btn-primary disabled:opacity-50"
             >
-              {isPending ? 'שומר...' : 'שמור'}
+              {isPending ? t('common.loading') : t('common.save')}
             </button>
             <button
               type="button"

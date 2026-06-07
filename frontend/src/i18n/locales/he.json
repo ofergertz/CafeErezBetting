@@ -42,10 +42,16 @@
     "matchFinished": "המשחק הסתיים",
     "matchLive": "חי עכשיו",
     "minOneBet": "יש לבחור לפחות הימור אחד",
-    "minStake": "יש להזין סכום הימור"
+    "minStake": "יש להזין סכום הימור",
+    "draw": "תיקו",
+    "clickOddsToAdd": "לחץ על יחס להוספה",
+    "removeBet": "הסר הימור",
+    "subtitle": "הימור על תוצאות כדורגל",
+    "select": "בחר"
   },
   "lotto": {
     "title": "לוטו",
+    "subtitle": "בחר 6 מספרים",
     "numbers": "בחר 6 מספרים (1–37)",
     "strong": "מספר חזק (1–7)",
     "addRow": "הוסף שורה",
@@ -56,6 +62,7 @@
   },
   "chance": {
     "title": "צ'אנס",
+    "subtitle": "בחר את המספרים שלך",
     "numbers": "בחר 5 מספרים (1–36)",
     "addRow": "הוסף שורה",
     "quickPick": "בחירה אקראית",
@@ -65,6 +72,7 @@
   },
   "lucky777": {
     "title": "777",
+    "subtitle": "שלוש ספרות זהות",
     "numbers": "בחר 7 מספרים (1–70)",
     "addRow": "הוסף שורה",
     "quickPick": "בחירה אקראית",
@@ -74,6 +82,7 @@
   },
   "toto": {
     "title": "טוטו",
+    "subtitle": "נחש את תוצאות המשחקים",
     "round": "סיבוב {{round}}",
     "addColumn": "הוסף עמודה",
     "fillAll": "יש למלא את כל המשחקים",
@@ -87,7 +96,17 @@
     "price": "מחיר",
     "inStock": "במלאי",
     "outOfStock": "אזל מהמלאי",
-    "confirmDelete": "האם אתה בטוח שברצונך למחוק מוצר זה?"
+    "confirmDelete": "האם אתה בטוח שברצונך למחוק מוצר זה?",
+    "productNotFound": "מוצר לא נמצא",
+    "scannerActive": "📷 מצב סריקה פעיל — כוון את הסורק למוצר",
+    "scanMode": "מצב סריקה",
+    "nameLabel": "שם מוצר",
+    "descriptionLabel": "תיאור",
+    "imageUrlLabel": "קישור לתמונה",
+    "barcodeLabel": "ברקוד",
+    "barcodePlaceholder": "לדוגמה: 1234567890123",
+    "errorLoading": "שגיאה בטעינת המוצרים",
+    "noProducts": "אין מוצרים להצגה"
   },
   "customers": {
     "title": "ניהול לקוחות",
@@ -138,10 +157,12 @@
     "anonymous": "אנונימי",
     "submittedAt": "הוגש ב",
     "newForm": "טופס חדש התקבל!",
-    "submitSuccess": "התקבל ✅"
+    "submitSuccess": "התקבל ✅",
+    "defaultType": "טופס"
   },
   "common": {
     "save": "שמור",
+    "saving": "שומר...",
     "cancel": "בטל",
     "delete": "מחק",
     "edit": "ערוך",
@@ -156,7 +177,12 @@
     "no": "לא",
     "search": "חיפוש",
     "filter": "סינון",
+    "clearFilter": "נקה סינון",
+    "tryAgain": "נסה שוב",
     "noData": "אין נתונים",
+    "noInfo": "אין מידע",
+    "prev": "הקודם",
+    "next": "הבא",
     "status": "סטטוס",
     "syncStatus": "סטטוס סנכרון",
     "lastSync": "סנכרון אחרון"
@@ -168,7 +194,9 @@
     "ip": "כתובת IP",
     "timestamp": "זמן",
     "from": "מתאריך",
-    "to": "עד תאריך"
+    "to": "עד תאריך",
+    "errorLoading": "שגיאה בטעינת לוג",
+    "totalRecords": "סה\"כ {{count}} רשומות"
   },
   "validation": {
     "required": "שדה חובה",

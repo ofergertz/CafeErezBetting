@@ -74,7 +74,7 @@ export default function AuditLogsPage() {
             onChange={(e) => { setAction(e.target.value); setPage(1) }}
             className="border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
           >
-            <option value="">הכל</option>
+            <option value="">{t('forms.filterAll')}</option>
             {ACTIONS.map(a => (
               <option key={a} value={a}>{a}</option>
             ))}
@@ -85,16 +85,16 @@ export default function AuditLogsPage() {
             onClick={() => { setFrom(''); setTo(''); setAction(''); setPage(1) }}
             className="btn btn-secondary text-sm"
           >
-            נקה סינון
+            {t('common.clearFilter')}
           </button>
         </div>
       </div>
 
       {isLoading && (
-        <div className="text-center py-10 text-gray-400">טוען...</div>
+        <div className="text-center py-10 text-gray-400">{t('common.loading')}</div>
       )}
       {isError && (
-        <div className="text-center py-10 text-red-500">שגיאה בטעינת לוג</div>
+        <div className="text-center py-10 text-red-500">{t('auditLogs.errorLoading')}</div>
       )}
 
       {data && (
@@ -112,7 +112,7 @@ export default function AuditLogsPage() {
               <tbody className="divide-y divide-gray-100">
                 {data.items.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="text-center py-10 text-gray-400">אין נתונים</td>
+                    <td colSpan={4} className="text-center py-10 text-gray-400">{t('common.noData')}</td>
                   </tr>
                 ) : (
                   data.items.map((log) => (
@@ -147,7 +147,7 @@ export default function AuditLogsPage() {
                 disabled={page === 1}
                 className="btn btn-secondary text-sm disabled:opacity-50"
               >
-                הקודם
+                {t('common.prev')}
               </button>
               <span className="text-sm text-gray-500">
                 {page} / {totalPages}
@@ -157,11 +157,11 @@ export default function AuditLogsPage() {
                 disabled={page === totalPages}
                 className="btn btn-secondary text-sm disabled:opacity-50"
               >
-                הבא
+                {t('common.next')}
               </button>
             </div>
           )}
-          <p className="text-xs text-gray-400 text-center mt-2">סה"כ {data.total} רשומות</p>
+          <p className="text-xs text-gray-400 text-center mt-2">{t('auditLogs.totalRecords', { count: data.total })}</p>
         </>
       )}
     </div>

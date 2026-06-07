@@ -76,7 +76,7 @@ export default function BetSlip({ onSubmit }: Props) {
             <div className="flex-1 min-w-0">
               <p className="text-xs font-semibold truncate">{item.homeTeam} - {item.awayTeam}</p>
               <p className="text-xs text-gray-500 mt-0.5">
-                {item.pick === '1' ? item.homeTeam : item.pick === '2' ? item.awayTeam : 'תיקו'}
+                {item.pick === '1' ? item.homeTeam : item.pick === '2' ? item.awayTeam : t('winner.pickX')}
                 {' · '}
                 <span className="font-bold text-[--color-accent]">{item.odds.toFixed(2)}</span>
               </p>
