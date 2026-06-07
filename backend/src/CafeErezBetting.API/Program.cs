@@ -43,6 +43,7 @@ builder.Services.AddScoped<ICustomerService, CustomerService>();
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IOtpService, OtpService>();
 builder.Services.AddScoped<ISmsService, SmsService>();
+builder.Services.AddScoped<IProductService, ProductService>();
 
 // ─── Background service ──────────────────────────────────────────────────────
 builder.Services.AddHostedService<WinnerSyncHostedService>();

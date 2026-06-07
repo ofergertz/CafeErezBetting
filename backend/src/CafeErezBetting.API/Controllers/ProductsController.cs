@@ -1,3 +1,5 @@
+using CafeErezBetting.Core.DTOs;
+using CafeErezBetting.Core.Interfaces.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -5,24 +7,61 @@ namespace CafeErezBetting.API.Controllers;
 
 [ApiController]
 [Route("api/products")]
-public class ProductsController : ControllerBase
+public class ProductsController(IProductService productService) : ControllerBase
 {
     [HttpGet]
-    public IActionResult GetAll() =>
-        Ok(new { products = Array.Empty<object>() }); // TODO: Phase 5
+    public async Task<IActionResult> GetAll()
+    {
+        var products = await productService.GetAllAsync();
+        return Ok(products);
+    }
 
     [HttpPost]
     [Authorize(Roles = "admin")]
-    public IActionResult Create([FromBody] object dto) =>
-        Ok(); // TODO: Phase 5
+    public async Task<IActionResult> Create([FromBody] CreateProductDto dto)
+    {
+        try
+        {
+            var product = await productService.CreateAsync(dto);
+            return CreatedAtAction(nameof(GetAll), new { id = product.Id }, product);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
 
     [HttpPut("{id:guid}")]
     [Authorize(Roles = "admin")]
-    public IActionResult Update(Guid id, [FromBody] object dto) =>
-        Ok(); // TODO: Phase 5
+    public async Task<IActionResult> Update(Guid id, [FromBody] UpdateProductDto dto)
+    {
+        try
+        {
+            var product = await productService.UpdateAsync(id, dto);
+            return Ok(product);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
 
     [HttpDelete("{id:guid}")]
     [Authorize(Roles = "admin")]
-    public IActionResult Delete(Guid id) =>
-        Ok(); // TODO: Phase 5
+    public async Task<IActionResult> Delete(Guid id)
+    {
+        try
+        {
+            await productService.DeleteAsync(id);
+            return NoContent();
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+    }
 }
