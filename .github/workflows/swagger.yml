@@ -1,0 +1,108 @@
+name: Swagger Validate & API Breaking Changes
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  validate-swagger:
+    name: Validate Swagger / Generate OpenAPI
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore & Build
+        working-directory: backend
+        run: |
+          dotnet restore
+          dotnet build --no-restore -c Release
+
+      - name: Start API with SWAGGER_ONLY=true (no DB needed)
+        run: |
+          ASPNETCORE_ENVIRONMENT=Development \
+          SWAGGER_ONLY=true \
+          ConnectionStrings__DefaultConnection="Host=localhost;Database=ci;Username=ci;Password=ci" \
+          ConnectionStrings__Redis="localhost:6379" \
+          Jwt__Secret="ci-placeholder-secret-for-swagger-gen-at-least-32-chars" \
+          Frontend__Url="http://localhost:5173" \
+          dotnet run --project backend/src/CafeErezBetting.API --no-build -c Release &
+          API_PID=$!
+
+          # Wait up to 30s for API to be ready
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:5000/swagger/v1/swagger.json -o /dev/null 2>&1; then
+              echo "✅ API ready after ${i}s"
+              break
+            fi
+            echo "Waiting... ${i}s"
+            sleep 1
+          done
+
+          # Export spec
+          mkdir -p docs
+          curl -sf http://localhost:5000/swagger/v1/swagger.json -o docs/openapi.json
+          kill $API_PID 2>/dev/null || true
+
+      - name: Validate OpenAPI JSON
+        run: |
+          python3 -c "
+          import json, sys
+          with open('docs/openapi.json') as f:
+              d = json.load(f)
+          paths = len(d.get('paths', {}))
+          print(f'✅ OpenAPI valid — {paths} paths found')
+          if paths == 0:
+              print('❌ No paths found in spec')
+              sys.exit(1)
+          "
+
+      - name: Upload OpenAPI spec
+        uses: actions/upload-artifact@v4
+        with:
+          name: openapi-spec
+          path: docs/openapi.json
+
+  api-breaking-changes:
+    name: API Breaking Changes Check
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    needs: validate-swagger
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download baseline spec from main
+        run: |
+          mkdir -p docs
+          curl -sf https://raw.githubusercontent.com/ofergertz/CafeErezBetting/main/docs/openapi.json \
+            -o docs/openapi-main.json \
+            || echo '{"openapi":"3.0.0","info":{"title":"baseline","version":"0"},"paths":{}}' \
+            > docs/openapi-main.json
+
+      - name: Download current spec
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          name: openapi-spec
+          workflow: swagger.yml
+          branch: ${{ github.head_ref }}
+        continue-on-error: true
+
+      - name: Check for breaking changes
+        run: |
+          # Get latest oasdiff release URL dynamically (release assets use versioned filenames)
+          OASDIFF_URL=$(curl -sL "https://api.github.com/repos/tufin/oasdiff/releases/latest" | python3 -c "import json,sys; d=json.load(sys.stdin); urls=[a['browser_download_url'] for a in d.get('assets',[]) if 'linux_amd64.tar.gz' in a['name']]; print(urls[0])")
+          curl -L "$OASDIFF_URL" | tar xz
+          chmod +x oasdiff
+          ./oasdiff breaking docs/openapi-main.json docs/openapi.json --format text || true
+          echo "ℹ️ Breaking changes check complete"

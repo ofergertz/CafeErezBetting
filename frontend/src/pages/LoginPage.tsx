@@ -10,6 +10,8 @@ import {
   type OtpSendData, type OtpVerifyData, type AdminLoginData
 } from '@/lib/validations'
 import type { AuthUser } from '@/types'
+import Logo from '@/components/ui/Logo'
+import { User, Lock } from 'lucide-react'
 
 type LoginMode = 'customer' | 'admin'
 type OtpStep   = 'phone' | 'code'
@@ -72,23 +74,23 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'var(--color-bg)' }}>
       <div className="card p-8 w-full max-w-sm shadow-lg">
-        <h1 className="font-display font-bold text-xl text-center text-[--color-accent] mb-6">
-          ☕ קפה ארז הימורים
-        </h1>
+        <div className="flex justify-center mb-6">
+          <Logo size="header" />
+        </div>
 
         {/* Mode toggle */}
         <div className="flex gap-2 mb-6">
           <button
             onClick={() => { setMode('customer'); setError('') }}
-            className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-colors ${mode === 'customer' ? 'bg-[--color-accent] text-white' : 'bg-gray-100 text-gray-600'}`}
+            className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-colors flex items-center justify-center gap-1.5 ${mode === 'customer' ? 'bg-[--color-accent] text-white' : 'bg-gray-100 text-gray-600'}`}
           >
-            👤 {t('auth.login')}
+            <User size={16} /> {t('auth.login')}
           </button>
           <button
             onClick={() => { setMode('admin'); setError('') }}
-            className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-colors ${mode === 'admin' ? 'bg-[--color-accent] text-white' : 'bg-gray-100 text-gray-600'}`}
+            className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-colors flex items-center justify-center gap-1.5 ${mode === 'admin' ? 'bg-[--color-accent] text-white' : 'bg-gray-100 text-gray-600'}`}
           >
-            🔑 {t('auth.adminLogin')}
+            <Lock size={16} /> {t('auth.adminLogin')}
           </button>
         </div>
 

@@ -5,6 +5,7 @@ import { api } from '@/lib/api'
 import type { ChancePayload, FormSubmittedDto } from '@/types'
 import { NumberGrid } from '@/components/forms/NumberGrid'
 import { SubmitSuccessOverlay } from '@/components/forms/SubmitSuccessOverlay'
+import { Target } from 'lucide-react'
 
 const COST_PER_ROW = 3.7
 const MAX_ROWS = 10
@@ -81,6 +82,14 @@ export default function ChancePage() {
   return (
     <div className="max-w-3xl mx-auto space-y-4 pb-8">
       <SubmitSuccessOverlay visible={showSuccess} />
+
+      <div className="bg-gradient-to-l from-teal-600 to-teal-400 rounded-xl p-4 mb-2 flex items-center gap-3">
+        <Target size={28} className="text-white" />
+        <div>
+          <h2 className="text-white font-bold text-lg">צ'אנס</h2>
+          <p className="text-teal-50 text-sm">בחר את המספרים שלך</p>
+        </div>
+      </div>
 
       <div className="card p-4">
         <h1 className="text-2xl font-bold text-[--color-accent]">{t('chance.title')}</h1>

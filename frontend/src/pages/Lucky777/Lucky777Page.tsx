@@ -82,6 +82,14 @@ export default function Lucky777Page() {
     <div className="max-w-3xl mx-auto space-y-4 pb-8">
       <SubmitSuccessOverlay visible={showSuccess} />
 
+      <div className="bg-gradient-to-l from-amber-600 to-amber-400 rounded-xl p-4 mb-2 flex items-center gap-3">
+        <span className="text-white font-black text-2xl tracking-widest" style={{ transform: 'rotate(-3deg)', display: 'inline-block' }}>777</span>
+        <div>
+          <h2 className="text-white font-bold text-lg">777</h2>
+          <p className="text-amber-50 text-sm">שלוש ספרות זהות</p>
+        </div>
+      </div>
+
       <div className="card p-4">
         <h1 className="text-2xl font-bold text-[--color-accent]">{t('lucky777.title')}</h1>
       </div>
