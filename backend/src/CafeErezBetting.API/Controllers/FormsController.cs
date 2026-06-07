@@ -1,3 +1,6 @@
+using CafeErezBetting.Core.DTOs;
+using CafeErezBetting.Core.Entities;
+using CafeErezBetting.Core.Interfaces.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -5,63 +8,51 @@ namespace CafeErezBetting.API.Controllers;
 
 [ApiController]
 [Route("api/forms")]
-public class FormsController : ControllerBase
+public class FormsController(IFormsService formsService) : ControllerBase
 {
-    // POST /api/forms/winner
     [HttpPost("winner")]
-    public IActionResult SubmitWinner([FromBody] object payload)
+    public async Task<IActionResult> SubmitWinner([FromBody] SubmitWinnerFormDto dto, CancellationToken ct)
     {
-        // TODO: Phase 2 — save form, emit SignalR event to admin
-        return Ok(new { id = Guid.NewGuid() });
+        var result = await formsService.SubmitWinnerFormAsync(dto, ct);
+        return Ok(result);
     }
 
-    // POST /api/forms/toto
     [HttpPost("toto")]
-    public IActionResult SubmitToto([FromBody] object payload)
-    {
-        // TODO: Phase 3
-        return Ok(new { id = Guid.NewGuid() });
-    }
+    public IActionResult SubmitToto([FromBody] object payload) =>
+        Ok(new { id = Guid.NewGuid() }); // TODO: Phase 3
 
-    // POST /api/forms/lotto
     [HttpPost("lotto")]
-    public IActionResult SubmitLotto([FromBody] object payload)
-    {
-        // TODO: Phase 3
-        return Ok(new { id = Guid.NewGuid() });
-    }
+    public IActionResult SubmitLotto([FromBody] object payload) =>
+        Ok(new { id = Guid.NewGuid() }); // TODO: Phase 3
 
-    // POST /api/forms/chance
     [HttpPost("chance")]
-    public IActionResult SubmitChance([FromBody] object payload)
-    {
-        // TODO: Phase 3
-        return Ok(new { id = Guid.NewGuid() });
-    }
+    public IActionResult SubmitChance([FromBody] object payload) =>
+        Ok(new { id = Guid.NewGuid() }); // TODO: Phase 3
 
-    // POST /api/forms/777
     [HttpPost("777")]
-    public IActionResult Submit777([FromBody] object payload)
-    {
-        // TODO: Phase 3
-        return Ok(new { id = Guid.NewGuid() });
-    }
+    public IActionResult Submit777([FromBody] object payload) =>
+        Ok(new { id = Guid.NewGuid() }); // TODO: Phase 3
 
-    // GET /api/forms  (admin only)
     [HttpGet]
     [Authorize(Roles = "admin")]
-    public IActionResult GetForms([FromQuery] string? status, [FromQuery] string? type, [FromQuery] DateOnly? date)
+    public async Task<IActionResult> GetForms(
+        [FromQuery] string? status,
+        [FromQuery] string? type,
+        [FromQuery] DateOnly? date,
+        CancellationToken ct)
     {
-        // TODO: Phase 4
-        return Ok(new { forms = Array.Empty<object>() });
+        var forms = await formsService.GetAllFormsAsync(status, type, date, ct);
+        return Ok(forms);
     }
 
-    // PATCH /api/forms/{id}/status  (admin only)
     [HttpPatch("{id:guid}/status")]
     [Authorize(Roles = "admin")]
-    public IActionResult UpdateStatus(Guid id, [FromBody] UpdateStatusRequest req)
+    public async Task<IActionResult> UpdateStatus(Guid id, [FromBody] UpdateStatusRequest req, CancellationToken ct)
     {
-        // TODO: Phase 4 — update status + emit SignalR event
+        if (!Enum.TryParse<FormStatus>(req.Status, true, out var status))
+            return BadRequest(new { message = $"Invalid status: {req.Status}" });
+
+        await formsService.UpdateFormStatusAsync(id, status, ct);
         return Ok();
     }
 }

@@ -1,5 +1,11 @@
 using System.Text;
+using CafeErezBetting.API.Hubs;
+using CafeErezBetting.Core.Interfaces.Services;
+using CafeErezBetting.Infrastructure.BackgroundServices;
 using CafeErezBetting.Infrastructure.Data;
+using CafeErezBetting.API.Services;
+using CafeErezBetting.Infrastructure.Services;
+using CafeErezBetting.Infrastructure.Services.External;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -15,7 +21,6 @@ Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
     .WriteTo.File("logs/app-.log", rollingInterval: RollingInterval.Day)
     .CreateLogger();
-
 builder.Host.UseSerilog();
 
 // ─── Database ────────────────────────────────────────────────────────────────
@@ -25,6 +30,17 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 // ─── Redis ───────────────────────────────────────────────────────────────────
 builder.Services.AddStackExchangeRedisCache(options =>
     options.Configuration = builder.Configuration.GetConnectionString("Redis"));
+
+// ─── HttpClient (for scraper) ────────────────────────────────────────────────
+builder.Services.AddHttpClient();
+
+// ─── Domain services ─────────────────────────────────────────────────────────
+builder.Services.AddScoped<IWinnerSyncService, WinnerScraperService>();
+builder.Services.AddScoped<IFormsService, FormsService>();
+builder.Services.AddScoped<IMatchNotificationService, SignalRNotificationService>();
+
+// ─── Background service ──────────────────────────────────────────────────────
+builder.Services.AddHostedService<WinnerSyncHostedService>();
 
 // ─── JWT Auth ────────────────────────────────────────────────────────────────
 var jwtSecret = builder.Configuration["Jwt:Secret"]
@@ -41,7 +57,6 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateAudience = false,
             ClockSkew        = TimeSpan.Zero,
         };
-        // Allow token via query string for SignalR
         options.Events = new JwtBearerEvents
         {
             OnMessageReceived = ctx =>
@@ -61,8 +76,8 @@ builder.Services.AddAuthorization();
 builder.Services.AddSignalR();
 
 // ─── CORS ────────────────────────────────────────────────────────────────────
-var allowedOrigins = builder.Configuration["Frontend:Url"]?.Split(',')
-    ?? ["http://localhost:5173"];
+var allowedOrigins = (builder.Configuration["Frontend:Url"] ?? "http://localhost:5173")
+    .Split(',', StringSplitOptions.RemoveEmptyEntries);
 
 builder.Services.AddCors(options =>
     options.AddPolicy("Frontend", policy =>
@@ -76,35 +91,25 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
-    c.SwaggerDoc("v1", new OpenApiInfo
-    {
-        Title   = "CafeErezBetting API",
-        Version = "v1",
-        Description = "Kiosk betting system for Cafe Erez",
-    });
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "CafeErezBetting API", Version = "v1" });
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
-        In     = ParameterLocation.Header,
-        Name   = "Authorization",
-        Type   = SecuritySchemeType.Http,
-        Scheme = "bearer",
-        BearerFormat = "JWT",
+        In = ParameterLocation.Header, Name = "Authorization",
+        Type = SecuritySchemeType.Http, Scheme = "bearer", BearerFormat = "JWT",
     });
     c.AddSecurityRequirement(new OpenApiSecurityRequirement
-    {
+    {{
+        new OpenApiSecurityScheme
         {
-            new OpenApiSecurityScheme
-            {
-                Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
-            },
-            Array.Empty<string>()
-        }
-    });
+            Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
+        },
+        Array.Empty<string>()
+    }});
 });
 
 var app = builder.Build();
 
-// ─── Middleware pipeline ──────────────────────────────────────────────────────
+// ─── Middleware ───────────────────────────────────────────────────────────────
 app.UseSerilogRequestLogging();
 
 if (app.Environment.IsDevelopment())
@@ -112,7 +117,6 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "CafeErezBetting API v1"));
 
-    // Auto-apply migrations in dev
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     await db.Database.MigrateAsync();
@@ -123,8 +127,8 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 
-// SignalR hubs
-// app.MapHub<NotificationsHub>("/hubs/notifications");
-// app.MapHub<MatchesHub>("/hubs/matches");
+// ─── SignalR hubs ─────────────────────────────────────────────────────────────
+app.MapHub<NotificationsHub>("/hubs/notifications");
+app.MapHub<MatchesHub>("/hubs/matches");
 
 app.Run();

@@ -1,3 +1,4 @@
+using CafeErezBetting.Core.Interfaces.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -5,22 +6,20 @@ namespace CafeErezBetting.API.Controllers;
 
 [ApiController]
 [Route("api/winner")]
-public class WinnerController : ControllerBase
+public class WinnerController(IWinnerSyncService syncService) : ControllerBase
 {
-    // GET /api/winner/matches
     [HttpGet("matches")]
-    public IActionResult GetMatches()
+    public async Task<IActionResult> GetMatches(CancellationToken ct)
     {
-        // TODO: Phase 2 — return from Redis cache, fallback to DB
-        return Ok(new { matches = Array.Empty<object>() });
+        var matches = await syncService.GetMatchesAsync(ct);
+        return Ok(matches);
     }
 
-    // POST /api/winner/sync  (admin only)
     [HttpPost("sync")]
     [Authorize(Roles = "admin")]
-    public IActionResult ManualSync()
+    public async Task<IActionResult> ManualSync(CancellationToken ct)
     {
-        // TODO: Phase 2 — trigger Winner/Toto sync from Telesport/Livegames
-        return Ok(new { message = "Sync triggered" });
+        var result = await syncService.SyncNowAsync(ct);
+        return Ok(result);
     }
 }

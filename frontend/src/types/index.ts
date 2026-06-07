@@ -168,3 +168,8 @@ export interface ApiError {
   message: string
   errors?: Record<string, string[]>
 }
+
+export interface FormSubmittedDto {
+  formId: string
+  status: string
+}
