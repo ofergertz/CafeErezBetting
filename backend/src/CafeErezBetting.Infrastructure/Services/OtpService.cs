@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using System.Text.Json;
 using CafeErezBetting.Core.Interfaces.Services;
 using Microsoft.Extensions.Caching.Distributed;
@@ -116,8 +117,7 @@ public class OtpService : IOtpService
 
     private static string GenerateCode()
     {
-        var random = new Random();
-        return random.Next(100000, 999999).ToString();
+        return RandomNumberGenerator.GetInt32(100000, 1000000).ToString();
     }
 }
 
