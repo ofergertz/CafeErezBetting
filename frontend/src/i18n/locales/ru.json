@@ -98,6 +98,8 @@
     "totalDebt": "Общий долг",
     "debts": "Долги",
     "addDebt": "Добавить долг",
+    "description": "Описание",
+    "descriptionOptional": "Описание (необязательно)",
     "category": "Категория",
     "amount": "Сумма",
     "paid": "Оплачено",
@@ -119,6 +121,11 @@
   },
   "forms": {
     "title": "Очередь форм",
+    "customer": "Клиент",
+    "type": "Тип",
+    "actions": "Действия",
+    "filterAll": "Все",
+    "filterDate": "Дата",
     "status": {
       "received": "Получено",
       "approved": "Одобрено",
@@ -149,6 +156,7 @@
     "search": "Поиск",
     "filter": "Фильтр",
     "noData": "Нет данных",
+    "status": "Статус",
     "syncStatus": "Статус синхронизации",
     "lastSync": "Последняя синхронизация"
   },

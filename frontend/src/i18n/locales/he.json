@@ -98,6 +98,8 @@
     "totalDebt": "סה\"כ חוב",
     "debts": "חובות",
     "addDebt": "הוסף חוב",
+    "description": "תיאור",
+    "descriptionOptional": "תיאור (אופציונלי)",
     "category": "קטגוריה",
     "amount": "סכום",
     "paid": "שולם",
@@ -119,6 +121,11 @@
   },
   "forms": {
     "title": "טפסים למשלוח",
+    "customer": "לקוח",
+    "type": "סוג",
+    "actions": "פעולות",
+    "filterAll": "הכל",
+    "filterDate": "תאריך",
     "status": {
       "received": "התקבל",
       "approved": "אושר",
@@ -149,6 +156,7 @@
     "search": "חיפוש",
     "filter": "סינון",
     "noData": "אין נתונים",
+    "status": "סטטוס",
     "syncStatus": "סטטוס סנכרון",
     "lastSync": "סנכרון אחרון"
   },
