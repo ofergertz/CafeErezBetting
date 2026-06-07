@@ -34,8 +34,9 @@ jobs:
       - name: Start API + export OpenAPI spec
         working-directory: .
         run: |
-          # Start the API in background with test config
+          # SWAGGER_ONLY=true: serves Swagger but skips DB migration
           ASPNETCORE_ENVIRONMENT=Development \
+          SWAGGER_ONLY=true \
           ConnectionStrings__DefaultConnection="Host=localhost;Database=test;Username=test;Password=test" \
           ConnectionStrings__Redis="localhost:6379" \
           Jwt__Secret="test-secret-at-least-32-chars-long-here" \
