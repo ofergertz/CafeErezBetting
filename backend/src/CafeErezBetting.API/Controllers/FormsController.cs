@@ -16,6 +16,7 @@ public class FormsController(IFormsService formsService, AppDbContext db, IMatch
     // ─── Winner ───────────────────────────────────────────────────────────────
 
     [HttpPost("winner")]
+    [Authorize]
     public async Task<IActionResult> SubmitWinner([FromBody] SubmitWinnerFormDto dto, CancellationToken ct)
     {
         var result = await formsService.SubmitWinnerFormAsync(dto, ct);
@@ -25,6 +26,7 @@ public class FormsController(IFormsService formsService, AppDbContext db, IMatch
     // ─── Toto ─────────────────────────────────────────────────────────────────
 
     [HttpPost("toto")]
+    [Authorize]
     public async Task<IActionResult> SubmitToto([FromBody] SubmitTotoFormDto dto, CancellationToken ct)
     {
         try
@@ -57,6 +59,7 @@ public class FormsController(IFormsService formsService, AppDbContext db, IMatch
     // ─── Lotto ────────────────────────────────────────────────────────────────
 
     [HttpPost("lotto")]
+    [Authorize]
     public async Task<IActionResult> SubmitLotto([FromBody] SubmitLottoFormDto dto, CancellationToken ct)
     {
         try { LotteryValidationService.ValidateLotto(dto); }
@@ -82,6 +85,7 @@ public class FormsController(IFormsService formsService, AppDbContext db, IMatch
     // ─── Chance ──────────────────────────────────────────────────────────────
 
     [HttpPost("chance")]
+    [Authorize]
     public async Task<IActionResult> SubmitChance([FromBody] SubmitChanceFormDto dto, CancellationToken ct)
     {
         try { LotteryValidationService.ValidateChance(dto); }
@@ -107,6 +111,7 @@ public class FormsController(IFormsService formsService, AppDbContext db, IMatch
     // ─── 777 ─────────────────────────────────────────────────────────────────
 
     [HttpPost("777")]
+    [Authorize]
     public async Task<IActionResult> Submit777([FromBody] SubmitLucky777FormDto dto, CancellationToken ct)
     {
         try { LotteryValidationService.ValidateLucky777(dto); }
