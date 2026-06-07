@@ -1,4 +1,5 @@
 using System.Text;
+using Microsoft.Extensions.Caching.Distributed;
 using CafeErezBetting.API.Hubs;
 using CafeErezBetting.Core.Entities;
 using CafeErezBetting.Core.Interfaces.Services;
@@ -72,6 +73,18 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 if (!string.IsNullOrEmpty(token) && path.StartsWithSegments("/hubs"))
                     ctx.Token = token;
                 return Task.CompletedTask;
+            },
+            OnTokenValidated = async ctx =>
+            {
+                var jti = ctx.SecurityToken.Id;
+                if (!string.IsNullOrEmpty(jti))
+                {
+                    var cache = ctx.HttpContext.RequestServices
+                        .GetRequiredService<IDistributedCache>();
+                    var blacklisted = await cache.GetStringAsync($"jwt:bl:{jti}");
+                    if (blacklisted is not null)
+                        ctx.Fail("Token revoked");
+                }
             },
         };
     });
