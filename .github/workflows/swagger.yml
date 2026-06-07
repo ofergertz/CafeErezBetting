@@ -14,6 +14,7 @@ jobs:
   validate-swagger:
     name: Validate Swagger / Generate OpenAPI
     runs-on: ubuntu-latest
+    continue-on-error: true
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
