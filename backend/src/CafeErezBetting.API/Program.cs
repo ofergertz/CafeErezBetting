@@ -118,11 +118,16 @@ var app = builder.Build();
 // ─── Middleware ───────────────────────────────────────────────────────────────
 app.UseSerilogRequestLogging();
 
-if (app.Environment.IsDevelopment())
+var swaggerOnly = bool.Parse(Environment.GetEnvironmentVariable("SWAGGER_ONLY") ?? "false");
+
+if (app.Environment.IsDevelopment() || swaggerOnly)
 {
     app.UseSwagger();
     app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "CafeErezBetting API v1"));
+}
 
+if (app.Environment.IsDevelopment() && !swaggerOnly)
+{
     try
     {
         using var scope = app.Services.CreateScope();
