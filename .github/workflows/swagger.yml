@@ -103,13 +103,7 @@ jobs:
       - name: Check for breaking changes (oasdiff)
         run: |
           # Get latest oasdiff release URL dynamically (release assets use versioned filenames)
-          OASDIFF_URL=$(curl -sL "https://api.github.com/repos/tufin/oasdiff/releases/latest" \
-            | python3 -c "
-import json,sys
-d=json.load(sys.stdin)
-urls=[a['browser_download_url'] for a in d.get('assets',[]) if 'linux_amd64.tar.gz' in a['name']]
-print(urls[0])
-")
+          OASDIFF_URL=$(curl -sL "https://api.github.com/repos/tufin/oasdiff/releases/latest" | python3 -c "import json,sys; d=json.load(sys.stdin); urls=[a['browser_download_url'] for a in d.get('assets',[]) if 'linux_amd64.tar.gz' in a['name']]; print(urls[0])")
           curl -L "$OASDIFF_URL" | tar xz
           chmod +x oasdiff
 
