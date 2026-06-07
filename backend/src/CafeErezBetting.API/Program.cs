@@ -123,21 +123,28 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "CafeErezBetting API v1"));
 
-    using var scope = app.Services.CreateScope();
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    await db.Database.MigrateAsync();
-
-    // Seed default admin if none exist
-    if (!await db.AdminUsers.AnyAsync())
+    try
     {
-        db.AdminUsers.Add(new AdminUser
+        using var scope = app.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        await db.Database.MigrateAsync();
+
+        // Seed default admin if none exist
+        if (!await db.AdminUsers.AnyAsync())
         {
-            Username = "admin",
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword("Admin1234!"),
-            DisplayName = "מנהל",
-            IsActive = true,
-        });
-        await db.SaveChangesAsync();
+            db.AdminUsers.Add(new AdminUser
+            {
+                Username = "admin",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("Admin1234!"),
+                DisplayName = "מנהל",
+                IsActive = true,
+            });
+            await db.SaveChangesAsync();
+        }
+    }
+    catch (Exception ex)
+    {
+        Log.Warning(ex, "Database migration/seeding skipped (no DB connection available)");
     }
 }
 
