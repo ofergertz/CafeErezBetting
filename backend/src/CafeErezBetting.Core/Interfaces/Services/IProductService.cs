@@ -8,4 +8,5 @@ public interface IProductService
     Task<ProductDto> CreateAsync(CreateProductDto dto);
     Task<ProductDto> UpdateAsync(Guid id, UpdateProductDto dto);
     Task DeleteAsync(Guid id);
+    Task<ProductDto?> GetByBarcodeAsync(string barcode);
 }

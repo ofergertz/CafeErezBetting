@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { api } from '@/lib/api'
 import { useAuthStore } from '@/store/authStore'
+import BarcodeScanner from '@/components/store/BarcodeScanner'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 interface Product {
@@ -16,6 +17,7 @@ interface Product {
   imageUrl?: string
   inStock: boolean
   createdAt: string
+  barcode?: string
 }
 
 // ── Schema ───────────────────────────────────────────────────────────────────
@@ -31,6 +33,7 @@ const schema = z.object({
     .optional()
     .or(z.literal('')),
   inStock: z.boolean(),
+  barcode: z.string().max(50).optional().or(z.literal('')),
 })
 
 type FormValues = z.infer<typeof schema>
@@ -59,6 +62,7 @@ function ProductModal({
       price: product?.price ?? undefined,
       imageUrl: product?.imageUrl ?? '',
       inStock: product?.inStock ?? true,
+      barcode: product?.barcode ?? '',
     },
   })
 
@@ -84,6 +88,7 @@ function ProductModal({
       ...data,
       imageUrl: data.imageUrl || undefined,
       description: data.description || undefined,
+      barcode: data.barcode || undefined,
     }
     if (isEdit) {
       updateMutation.mutate(payload)
@@ -172,6 +177,20 @@ function ProductModal({
             )}
           </div>
 
+          {/* Barcode */}
+          <div>
+            <label className="block text-sm font-medium mb-1">ברקוד</label>
+            <input
+              {...register('barcode')}
+              placeholder="לדוגמה: 1234567890123"
+              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+              dir="ltr"
+            />
+            {errors.barcode && (
+              <p className="text-red-500 text-xs mt-1">{errors.barcode.message}</p>
+            )}
+          </div>
+
           {/* In Stock */}
           <div className="flex items-center gap-2">
             <input
@@ -230,17 +249,20 @@ function ProductCard({
   isAdmin,
   onEdit,
   onDelete,
+  highlighted,
 }: {
   product: Product
   isAdmin: boolean
   onEdit: (p: Product) => void
   onDelete: (p: Product) => void
+  highlighted?: boolean
 }) {
   const { t } = useTranslation()
 
   return (
     <div
-      className={`card relative group ${!product.inStock ? 'opacity-75' : ''}`}
+      ref={highlighted ? (el) => { if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' }) } : undefined}
+      className={`card relative group ${!product.inStock ? 'opacity-75' : ''} ${highlighted ? 'ring-2 ring-blue-400 animate-pulse' : ''}`}
     >
       {/* Image */}
       {product.imageUrl ? (
@@ -297,6 +319,9 @@ function ProductCard({
           {product.inStock ? t('store.inStock') : t('store.outOfStock')}
         </span>
       </div>
+      {product.barcode && (
+        <p className="text-xs text-gray-400 mt-1">🔖 {product.barcode}</p>
+      )}
     </div>
   )
 }
@@ -309,6 +334,8 @@ export default function StorePage() {
 
   const [addModal, setAddModal] = useState(false)
   const [editProduct, setEditProduct] = useState<Product | null>(null)
+  const [scannerMode, setScannerMode] = useState(false)
+  const [highlightedId, setHighlightedId] = useState<string | null>(null)
 
   const { data: products, isLoading, isError } = useQuery({
     queryKey: ['products'],
@@ -331,15 +358,32 @@ export default function StorePage() {
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">{t('store.title')}</h1>
-        {isAdmin && (
-          <button
-            onClick={() => setAddModal(true)}
-            className="btn btn-primary"
-          >
-            + {t('store.addProduct')}
-          </button>
-        )}
+        <div className="flex gap-2">
+          {isAdmin && (
+            <button
+              onClick={() => setScannerMode(v => !v)}
+              className={`btn ${scannerMode ? 'btn-primary' : 'btn-secondary'}`}
+              title="מצב סריקה"
+            >
+              📷 מצב סריקה
+            </button>
+          )}
+          {isAdmin && (
+            <button
+              onClick={() => setAddModal(true)}
+              className="btn btn-primary"
+            >
+              + {t('store.addProduct')}
+            </button>
+          )}
+        </div>
       </div>
+
+      {scannerMode && (
+        <BarcodeScanner
+          onFound={(id) => setHighlightedId(id)}
+        />
+      )}
 
       {/* Loading */}
       {isLoading && (
@@ -373,6 +417,7 @@ export default function StorePage() {
               isAdmin={isAdmin}
               onEdit={setEditProduct}
               onDelete={handleDelete}
+              highlighted={highlightedId === p.id}
             />
           ))}
         </div>

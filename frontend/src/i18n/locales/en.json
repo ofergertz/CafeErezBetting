@@ -8,7 +8,8 @@
     "store": "Store",
     "customers": "Customers",
     "forms": "Forms Queue",
-    "kiosk": "Kiosk Screen"
+    "kiosk": "Kiosk Screen",
+    "auditLogs": "Audit Logs"
   },
   "auth": {
     "login": "Login",
@@ -159,6 +160,15 @@
     "status": "Status",
     "syncStatus": "Sync status",
     "lastSync": "Last sync"
+  },
+  "auditLogs": {
+    "title": "Audit Logs",
+    "user": "User",
+    "action": "Action",
+    "ip": "IP Address",
+    "timestamp": "Timestamp",
+    "from": "From",
+    "to": "To"
   },
   "validation": {
     "required": "Required",

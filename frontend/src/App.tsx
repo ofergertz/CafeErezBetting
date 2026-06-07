@@ -10,6 +10,7 @@ import StorePage    from '@/pages/Store/StorePage'
 import CustomersPage from '@/pages/Admin/Customers/CustomersPage'
 import FormsPage    from '@/pages/Admin/Forms/FormsPage'
 import KioskPage    from '@/pages/Admin/Kiosk/KioskPage'
+import AuditLogsPage from '@/pages/Admin/AuditLogsPage'
 import LoginPage    from '@/pages/LoginPage'
 
 function ProtectedAdminRoute({ children }: { children: React.ReactNode }) {
@@ -38,6 +39,9 @@ export default function App() {
           } />
           <Route path="kiosk" element={
             <ProtectedAdminRoute><KioskPage /></ProtectedAdminRoute>
+          } />
+          <Route path="audit-logs" element={
+            <ProtectedAdminRoute><AuditLogsPage /></ProtectedAdminRoute>
           } />
         </Route>
         <Route path="*" element={<Navigate to="/winner" replace />} />
