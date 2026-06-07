@@ -60,6 +60,8 @@ public static class LotteryValidationService
             throw new ArgumentException("At least one column is required");
         if (dto.Columns.Count > 14)
             throw new ArgumentException("Maximum 14 columns allowed");
+        if (expectedMatchCount <= 0)
+            throw new ArgumentException("At least one match pick is required per column");
 
         foreach (var col in dto.Columns)
         {
