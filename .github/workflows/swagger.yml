@@ -18,12 +18,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup .NET (8 for build + 9 for Swashbuckle CLI)
+      - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: |
-            8.0.x
-            9.0.x
+          dotnet-version: "8.0.x"
 
       - name: Restore dependencies
         working-directory: backend
@@ -33,19 +31,19 @@ jobs:
         working-directory: backend
         run: dotnet build --configuration Release --no-restore
 
-      - name: Install Swashbuckle CLI
-        run: dotnet tool install --global Swashbuckle.AspNetCore.Cli --version 8.0.0
+      - name: Install Swashbuckle CLI (net8.0 variant)
+        run: dotnet tool install --global Swashbuckle.AspNetCore.Cli --version 8.0.0 --framework net8.0
 
       - name: Generate OpenAPI spec
         env:
-          ASPNETCORE_ENVIRONMENT: Production
-          Jwt__Secret: ci-placeholder-secret-for-swagger-gen
+          ASPNETCORE_ENVIRONMENT: Development
+          Jwt__Secret: ci-placeholder-secret-for-swagger-gen-at-least-32-chars
           ConnectionStrings__DefaultConnection: Host=localhost;Database=ci;Username=ci;Password=ci
           ConnectionStrings__Redis: localhost:6379
           Frontend__Url: http://localhost:5173
         run: |
           mkdir -p docs
-          swagger tofile \
+          ~/.dotnet/tools/swagger tofile \
             --output docs/openapi.json \
             backend/src/CafeErezBetting.API/bin/Release/net8.0/CafeErezBetting.API.dll \
             v1
