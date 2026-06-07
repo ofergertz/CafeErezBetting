@@ -1,5 +1,6 @@
 using System.Text;
 using CafeErezBetting.API.Hubs;
+using CafeErezBetting.Core.Entities;
 using CafeErezBetting.Core.Interfaces.Services;
 using CafeErezBetting.Infrastructure.BackgroundServices;
 using CafeErezBetting.Infrastructure.Data;
@@ -39,6 +40,9 @@ builder.Services.AddScoped<IWinnerSyncService, WinnerScraperService>();
 builder.Services.AddScoped<IFormsService, FormsService>();
 builder.Services.AddScoped<IMatchNotificationService, SignalRNotificationService>();
 builder.Services.AddScoped<ICustomerService, CustomerService>();
+builder.Services.AddScoped<IJwtService, JwtService>();
+builder.Services.AddScoped<IOtpService, OtpService>();
+builder.Services.AddScoped<ISmsService, SmsService>();
 
 // ─── Background service ──────────────────────────────────────────────────────
 builder.Services.AddHostedService<WinnerSyncHostedService>();
@@ -121,6 +125,19 @@ if (app.Environment.IsDevelopment())
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     await db.Database.MigrateAsync();
+
+    // Seed default admin if none exist
+    if (!await db.AdminUsers.AnyAsync())
+    {
+        db.AdminUsers.Add(new AdminUser
+        {
+            Username = "admin",
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword("Admin1234!"),
+            DisplayName = "מנהל",
+            IsActive = true,
+        });
+        await db.SaveChangesAsync();
+    }
 }
 
 app.UseCors("Frontend");

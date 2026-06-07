@@ -14,6 +14,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<WinnerMatch> WinnerMatches => Set<WinnerMatch>();
     public DbSet<Product>     Products     => Set<Product>();
     public DbSet<AuditLog>    AuditLogs    => Set<AuditLog>();
+    public DbSet<AdminUser>   AdminUsers   => Set<AdminUser>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -70,6 +71,13 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
              );
             e.Property(a => a.Action).HasMaxLength(100);
             e.Property(a => a.Role).HasMaxLength(20);
+        });
+
+        modelBuilder.Entity<AdminUser>(e =>
+        {
+            e.HasIndex(u => u.Username).IsUnique();
+            e.Property(u => u.Username).HasMaxLength(100);
+            e.Property(u => u.DisplayName).HasMaxLength(200);
         });
 
         modelBuilder.Entity<WinnerMatch>(e =>
