@@ -67,7 +67,7 @@ function FormCard({
   const { t } = useTranslation()
   const customerName = form.customer
     ? `${form.customer.firstName} ${form.customer.lastName}`
-    : 'אנונימי'
+    : t('forms.anonymous')
 
   return (
     <div className="bg-white rounded-xl shadow p-4 flex flex-col gap-2">
@@ -85,7 +85,7 @@ function FormCard({
           {form.status === 'Received' ? t('forms.approve') : t('forms.markSent')}
         </button>
       ) : (
-        <span className="mt-1 text-xs text-green-600 font-semibold">נשלח ✓</span>
+        <span className="mt-1 text-xs text-green-600 font-semibold">{t('forms.submitSuccess')}</span>
       )}
     </div>
   )
@@ -136,7 +136,7 @@ function SyncStatus() {
   })
 
   const lastSync = data?.lastSync
-  let label = 'אין מידע'
+  let label = t('common.noInfo')
   if (lastSync) {
     try {
       const d = new Date(lastSync)
@@ -199,8 +199,8 @@ export default function KioskPage() {
       const formData = rawData as { customer?: { firstName: string; lastName: string }; type?: string }
       const customerName = formData?.customer
         ? `${formData.customer.firstName} ${formData.customer.lastName}`
-        : 'אנונימי'
-      const formType = formData?.type ?? 'טופס'
+        : t('forms.anonymous')
+      const formType = formData?.type ?? t('forms.defaultType')
       addToast(`${t('forms.newForm')} — ${customerName} (${formType})`)
 
       queryClient.invalidateQueries({ queryKey: ['forms-kiosk'] })
