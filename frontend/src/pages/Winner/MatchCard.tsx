@@ -89,9 +89,9 @@ export default function MatchCard({ match }: Props) {
             return (
               <button
                 key={key}
-                disabled={isLocked}
+                disabled={isLocked || odds == null}
                 aria-label={`בחר: ${key === '1' ? match.homeTeam : key === '2' ? match.awayTeam : 'תיקו'}`}
-                onClick={() => addOrToggle({
+                onClick={() => odds != null && addOrToggle({
                   matchId: match.id,
                   homeTeam: match.homeTeam,
                   awayTeam: match.awayTeam,
@@ -110,7 +110,7 @@ export default function MatchCard({ match }: Props) {
                 `}
               >
                 <span className="text-xs text-gray-500">{label}</span>
-                <span>{odds.toFixed(2)}</span>
+                <span>{odds != null ? odds.toFixed(2) : '—'}</span>
               </button>
             )
           })}
