@@ -2,7 +2,8 @@ import { useEffect, useRef } from 'react'
 import * as signalR from '@microsoft/signalr'
 import { useAuthStore } from '@/store/authStore'
 
-const WS_URL = import.meta.env.VITE_WS_URL || 'http://localhost:5000'
+// Use relative URL so Vite proxy handles routing in dev (same fix as api.ts)
+const WS_URL = import.meta.env.VITE_WS_URL ?? ''
 
 export function useMatchesHub(onMatchesUpdated: (matches: unknown[]) => void) {
   const connectionRef = useRef<signalR.HubConnection | null>(null)
