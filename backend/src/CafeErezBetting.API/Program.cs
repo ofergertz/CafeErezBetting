@@ -99,6 +99,9 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddAuthorization();
 
+// ─── HTTPS / HSTS (SEC-007) ──────────────────────────────────────────────────
+// UseHttpsRedirection + UseHsts are applied below (production only).
+// HSTS preload + includeSubDomains + 1-year max-age per OWASP recommendation.
 builder.Services.AddHsts(options =>
 {
     options.Preload = true;
