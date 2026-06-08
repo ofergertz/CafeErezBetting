@@ -16,7 +16,6 @@ namespace CafeErezBetting.Infrastructure.Services.External;
 public class WinnerScraperService(
     AppDbContext db,
     IDistributedCache cache,
-    IHttpClientFactory httpClientFactory,
     ILogger<WinnerScraperService> logger
 ) : IWinnerSyncService
 {
