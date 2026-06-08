@@ -9,7 +9,8 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 30_000,
-      retry: 2,
+      retry: 1,
+      retryDelay: 1_000,
     },
   },
 })
