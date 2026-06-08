@@ -3,6 +3,7 @@ using System.Text.Json;
 using CafeErezBetting.Core.Interfaces.Services;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Logging;
+using StackExchange.Redis;
 using BC = BCrypt.Net.BCrypt;
 
 namespace CafeErezBetting.Infrastructure.Services;
@@ -10,6 +11,7 @@ namespace CafeErezBetting.Infrastructure.Services;
 public class OtpService : IOtpService
 {
     private readonly IDistributedCache _cache;
+    private readonly IDatabase _redisDb;
     private readonly ISmsService _sms;
     private readonly ILogger<OtpService> _logger;
 
@@ -19,9 +21,17 @@ public class OtpService : IOtpService
     private const int MaxVerifyAttempts = 5;
     private const int VerifyLockoutSeconds = 600; // 10 minutes
 
-    public OtpService(IDistributedCache cache, ISmsService sms, ILogger<OtpService> logger)
+    // Lua script: atomic INCR + EXPIRE on first creation (avoids TOCTOU)
+    private static readonly LuaScript RateLimitScript = LuaScript.Prepare(@"
+local current = redis.call('INCR', @key)
+if current == 1 then redis.call('EXPIRE', @key, @ttl) end
+return current
+");
+
+    public OtpService(IDistributedCache cache, IConnectionMultiplexer redis, ISmsService sms, ILogger<OtpService> logger)
     {
         _cache = cache;
+        _redisDb = redis.GetDatabase();
         _sms = sms;
         _logger = logger;
     }
@@ -39,14 +49,9 @@ public class OtpService : IOtpService
             AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(OtpTtlSeconds)
         });
 
-        // Increment rate limit counter
+        // Atomic rate-limit increment via Lua: avoids TOCTOU between GET and SET
         var rlKey = $"otp:rl:{phone}";
-        var rlVal = await _cache.GetStringAsync(rlKey);
-        var count = rlVal is null ? 1 : int.Parse(rlVal) + 1;
-        await _cache.SetStringAsync(rlKey, count.ToString(), new DistributedCacheEntryOptions
-        {
-            AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(RateLimitTtlSeconds)
-        });
+        await _redisDb.ScriptEvaluateAsync(RateLimitScript, new { key = (RedisKey)rlKey, ttl = RateLimitTtlSeconds });
 
         await _sms.SendAsync(phone, $"קוד האימות שלך הוא: {code}");
         return true;

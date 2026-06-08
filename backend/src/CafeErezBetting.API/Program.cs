@@ -1,4 +1,5 @@
 using System.Text;
+using StackExchange.Redis;
 using Microsoft.Extensions.Caching.Distributed;
 using CafeErezBetting.API.Hubs;
 using CafeErezBetting.Core.Entities;
@@ -30,8 +31,15 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // ─── Redis ───────────────────────────────────────────────────────────────────
+// AbortOnConnectFail=false: don't crash on startup when Redis is unavailable
+// (required for CI jobs: Swagger gen + EF migrations run without Redis)
+var redisConnectionString = builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379";
+var redisOptions = ConfigurationOptions.Parse(redisConnectionString);
+redisOptions.AbortOnConnectFail = false;
+builder.Services.AddSingleton<IConnectionMultiplexer>(
+    ConnectionMultiplexer.Connect(redisOptions));
 builder.Services.AddStackExchangeRedisCache(options =>
-    options.Configuration = builder.Configuration.GetConnectionString("Redis"));
+    options.ConfigurationOptions = redisOptions);
 
 // ─── HttpClient (for scraper) ────────────────────────────────────────────────
 builder.Services.AddHttpClient();
@@ -90,6 +98,13 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 builder.Services.AddAuthorization();
+
+builder.Services.AddHsts(options =>
+{
+    options.Preload = true;
+    options.IncludeSubDomains = true;
+    options.MaxAge = TimeSpan.FromDays(365);
+});
 
 // ─── SignalR ──────────────────────────────────────────────────────────────────
 builder.Services.AddSignalR();
@@ -164,6 +179,12 @@ if (app.Environment.IsDevelopment() && !swaggerOnly)
     {
         Log.Warning(ex, "Database migration/seeding skipped (no DB connection available)");
     }
+}
+
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+    app.UseHsts();
 }
 
 app.UseCors("Frontend");
