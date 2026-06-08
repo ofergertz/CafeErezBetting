@@ -7,7 +7,9 @@ import { NumberGrid } from '@/components/forms/NumberGrid'
 import { SubmitSuccessOverlay } from '@/components/forms/SubmitSuccessOverlay'
 import { Sparkles } from 'lucide-react'
 
-const COST_PER_ROW = 8
+const COST_REGULAR = 3
+const COST_DOUBLE  = 6
+const MIN_ROWS = 2
 const MAX_ROWS = 10
 const NUMBERS_MAX = 37
 const STRONG_MAX = 7
@@ -33,9 +35,12 @@ function randomSample(pool: number[], count: number): number[] {
 
 export default function LottoPage() {
   const { t } = useTranslation()
-  const [rows, setRows] = useState<LottoRowState[]>([createEmptyRow()])
+  const [isDouble, setIsDouble]       = useState(false)
+  const [rows, setRows]               = useState<LottoRowState[]>([createEmptyRow(), createEmptyRow()])
   const [validationError, setValidationError] = useState<string | null>(null)
   const [showSuccess, setShowSuccess] = useState(false)
+
+  const COST_PER_ROW = isDouble ? COST_DOUBLE : COST_REGULAR
   // Fix 1: store timer ref to clear on unmount (memory leak prevention)
   const successTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -52,7 +57,7 @@ export default function LottoPage() {
       setShowSuccess(true)
       successTimer.current = setTimeout(() => {
         setShowSuccess(false)
-        setRows([createEmptyRow()])
+        setRows([createEmptyRow(), createEmptyRow()])
       }, 2000)
     },
   })
@@ -119,14 +124,34 @@ export default function LottoPage() {
 
       <div className="bg-gradient-to-l from-purple-700 to-purple-500 rounded-xl p-4 mb-2 flex items-center gap-3">
         <Sparkles size={28} className="text-white" />
-        <div>
+        <div className="flex-1">
           <h2 className="text-white font-bold text-lg">לוטו</h2>
-          <p className="text-purple-100 text-sm">בחר 6 מספרים</p>
+          <p className="text-purple-100 text-sm">בחר 6 מספרים + חזק</p>
         </div>
       </div>
 
-      <div className="card p-4">
-        <h1 className="text-2xl font-bold text-[--color-accent]">{t('lotto.title')}</h1>
+      {/* לוטו רגיל / לוטו דאבל toggle */}
+      <div className="card p-3">
+        <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+          <button
+            type="button"
+            onClick={() => setIsDouble(false)}
+            className={`flex-1 py-2 rounded-md text-sm font-semibold transition-all ${
+              !isDouble ? 'bg-white text-purple-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            לוטו רגיל · 3 ₪
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsDouble(true)}
+            className={`flex-1 py-2 rounded-md text-sm font-semibold transition-all ${
+              isDouble ? 'bg-white text-purple-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            לוטו דאבל · 6 ₪
+          </button>
+        </div>
       </div>
 
       {rows.map((row, rowIdx) => (
@@ -139,7 +164,7 @@ export default function LottoPage() {
                 onClick={() => handleQuickPick(rowIdx)}>
                 {t('lotto.quickPick')}
               </button>
-              {rows.length > 1 && (
+              {rows.length > MIN_ROWS && (
                 <button type="button" className="btn-danger text-xs px-3 min-h-[44px]"
                   onClick={() => setRows((prev) => prev.filter((_, i) => i !== rowIdx))}>
                   ✕
