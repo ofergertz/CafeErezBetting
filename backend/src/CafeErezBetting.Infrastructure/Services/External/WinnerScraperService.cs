@@ -5,6 +5,7 @@ using CafeErezBetting.Core.Interfaces.Services;
 using CafeErezBetting.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace CafeErezBetting.Infrastructure.Services.External;
@@ -16,6 +17,9 @@ namespace CafeErezBetting.Infrastructure.Services.External;
 public class WinnerScraperService(
     AppDbContext db,
     IDistributedCache cache,
+    IHttpClientFactory httpClientFactory,
+    IHostEnvironment env,
+    PlaywrightWinnerScraper playwright,
     ILogger<WinnerScraperService> logger
 ) : IWinnerSyncService
 {
@@ -89,23 +93,42 @@ public class WinnerScraperService(
     }
 
     /// <summary>
-    /// Scrape from external source. Returns mock data when env is Development.
-    /// In production: implement real HTTP scraping of Telesport/Livegames.
+    /// Scrape from external source.
+    /// Development: returns mock data for fast local iteration.
+    /// Production: uses Playwright to scrape telesport.co.il.
     /// </summary>
     private async Task<List<WinnerMatchDto>> ScrapeExternalAsync(CancellationToken ct)
     {
-        // TODO: implement real scraping in production
-        // The endpoint must ONLY be called from this backend service (CORS + ToS)
-        await Task.Delay(100, ct); // simulate network
+        if (env.IsDevelopment())
+        {
+            await Task.Delay(50, ct);
+            return GetMockData();
+        }
 
+        try
+        {
+            var scraped = await playwright.ScrapeAsync(ct);
+            if (scraped.Count > 0) return scraped;
+            logger.LogWarning("Playwright returned 0 matches — falling back to mock data");
+            return GetMockData();
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Playwright scrape failed — falling back to mock data");
+            return GetMockData();
+        }
+    }
+
+    private static List<WinnerMatchDto> GetMockData()
+    {
         var now = DateTime.UtcNow;
         return
         [
             new(Guid.NewGuid(), "ext-001", "מכבי תל אביב",    "הפועל ב\"ש",    "ליגת העל",  now.AddHours(2),  new(2.10m, 3.20m, 3.50m), "upcoming", false, now),
-            new(Guid.NewGuid(), "ext-002", "בית\"ר ירושלים",   "מכבי חיפה",     "ליגת העל",  now.AddHours(4),  new(2.80m, 3.10m, 2.60m), "upcoming", false, now),
-            new(Guid.NewGuid(), "ext-003", "Real Madrid",       "Barcelona",      "La Liga",   now.AddMinutes(5),new(2.50m, 3.40m, 2.90m), "live",     true,  now),
-            new(Guid.NewGuid(), "ext-004", "Manchester City",   "Arsenal",        "Premier League", now.AddHours(6), new(1.90m, 3.80m, 4.00m), "upcoming", false, now),
-            new(Guid.NewGuid(), "ext-005", "Bayern Munich",     "Borussia Dortmund", "Bundesliga", now.AddHours(3), new(1.70m, 3.60m, 4.50m), "upcoming", false, now),
+            new(Guid.NewGuid(), "ext-002", "ביתר ירושלים",    "מכבי חיפה",     "ליגת העל",  now.AddHours(4),  new(2.80m, 3.10m, 2.60m), "upcoming", false, now),
+            new(Guid.NewGuid(), "ext-003", "Real Madrid",      "Barcelona",      "La Liga",   now.AddMinutes(5),new(2.50m, 3.40m, 2.90m), "live",     true,  now),
+            new(Guid.NewGuid(), "ext-004", "Manchester City",  "Arsenal",        "Premier League", now.AddHours(6), new(1.90m, 3.80m, 4.00m), "upcoming", false, now),
+            new(Guid.NewGuid(), "ext-005", "Bayern Munich",    "Borussia Dortmund", "Bundesliga", now.AddHours(3), new(1.70m, 3.60m, 4.50m), "upcoming", false, now),
         ];
     }
 
