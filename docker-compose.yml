@@ -41,6 +41,8 @@ services:
     container_name: caferez_backend
     environment:
       ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:5000
+      DOTNET_USE_POLLING_FILE_WATCHER: true
       ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-cafe_erez_betting};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-changeme}"
       ConnectionStrings__Redis: "redis:6379,password=${REDIS_PASSWORD:-changeme}"
       Jwt__Secret: ${JWT_SECRET:-dev-secret-min-32-chars-here-ok}
@@ -58,7 +60,7 @@ services:
         condition: service_healthy
     volumes:
       - ./backend:/app
-    command: dotnet watch run --project src/CafeErezBetting.API
+    command: dotnet watch run --project src/CafeErezBetting.API --no-launch-profile
 
   frontend:
     build:
