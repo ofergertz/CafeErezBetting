@@ -192,6 +192,9 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 
+// ─── Health check ────────────────────────────────────────────────────────────
+app.MapGet("/health", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow }));
+
 // ─── SignalR hubs ─────────────────────────────────────────────────────────────
 app.MapHub<NotificationsHub>("/hubs/notifications");
 app.MapHub<MatchesHub>("/hubs/matches");
