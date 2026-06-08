@@ -59,8 +59,9 @@ services:
     volumes:
       - ./backend:/app
       # Mount host NuGet cache read-only — avoids internet access during restore
-      # Windows: %USERPROFILE%\.nuget\packages is mapped via NUGET_PACKAGES env var
-      - ${NUGET_PACKAGES:-~/.nuget/packages}:/root/.nuget/packages:ro
+      # USERPROFILE is set automatically on Windows (e.g. C:\Users\Ofer)
+      # On Linux/Mac USERPROFILE is unset so falls back to /root (no-op, internet works there anyway)
+      - ${USERPROFILE:-/root}/.nuget/packages:/root/.nuget/packages:ro
     command: dotnet watch run --project src/CafeErezBetting.API --no-launch-profile
 
   frontend:
