@@ -118,13 +118,18 @@ export interface LottoPayload {
 
 // ─── Chance ──────────────────────────────────────────────────────────────────
 
-export interface ChanceRow {
-  numbers: number[]  // 5 unique from 1-36
+export type ChanceSuit = 'spades' | 'hearts' | 'diamonds' | 'clubs'
+export type ChanceCard = '7' | '8' | '9' | '10' | 'J' | 'Q' | 'K' | 'A'
+
+export interface ChancePick {
+  suit: ChanceSuit
+  card: ChanceCard
 }
 
 export interface ChancePayload {
-  rows: ChanceRow[]
-  costPerRow: number
+  picks: ChancePick[]     // one per suit (4 total)
+  stake: number           // 5 | 10 | 25 | 50 | 100 | 250 | 500
+  draws: number           // 2 | 3 | 4 | 5 | 7 | 10 | 12
 }
 
 // ─── 777 ─────────────────────────────────────────────────────────────────────
