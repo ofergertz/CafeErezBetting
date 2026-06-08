@@ -40,7 +40,10 @@ public class FormsService(
         return new FormSubmittedDto(form.Id, form.Status.ToString().ToLower());
     }
 
-    public async Task<List<BettingForm>> GetAllFormsAsync(string? status, string? type, DateOnly? date, CancellationToken ct = default)
+    /// <summary>
+    /// Returns lightweight summaries — no Payload field to prevent over-exposure.
+    /// </summary>
+    public async Task<List<FormSummaryDto>> GetAllFormsAsync(string? status, string? type, DateOnly? date, CancellationToken ct = default)
     {
         var query = db.BettingForms.Include(f => f.Customer).AsQueryable();
 
@@ -57,17 +60,35 @@ public class FormsService(
             query = query.Where(f => f.SubmittedAt >= start && f.SubmittedAt < end);
         }
 
-        return await query.OrderByDescending(f => f.SubmittedAt).ToListAsync(ct);
+        return await query
+            .OrderByDescending(f => f.SubmittedAt)
+            .Select(f => new FormSummaryDto(
+                f.Id,
+                f.Type.ToString().ToLower(),
+                f.Customer != null ? $"{f.Customer.FirstName} {f.Customer.LastName}" : null,
+                f.Status.ToString().ToLower(),
+                f.SubmittedAt,
+                f.ReceivedAt,
+                f.ApprovedAt,
+                f.SentAt
+            ))
+            .ToListAsync(ct);
+    }
+
+    /// <summary>
+    /// Returns the full form including Payload — admin only; called by GET /api/forms/{id}.
+    /// </summary>
+    public async Task<BettingForm?> GetFormByIdAsync(Guid formId, CancellationToken ct = default)
+    {
+        return await db.BettingForms
+            .Include(f => f.Customer)
+            .FirstOrDefaultAsync(f => f.Id == formId, ct);
     }
 
     public async Task UpdateFormStatusAsync(Guid formId, FormStatus newStatus, CancellationToken ct = default)
     {
         var form = await db.BettingForms.FindAsync([formId], ct)
             ?? throw new KeyNotFoundException($"Form {formId} not found");
-
-        if ((int)newStatus <= (int)form.Status)
-            throw new InvalidOperationException(
-                $"Cannot move form status from {form.Status} to {newStatus}: status transitions must be forward-only (Received=0 → Approved=1 → Sent=2)");
 
         form.Status = newStatus;
 

@@ -145,7 +145,16 @@ public class FormsController(IFormsService formsService, AppDbContext db, IMatch
         CancellationToken ct)
     {
         var forms = await formsService.GetAllFormsAsync(status, type, date, ct);
-        return Ok(new { forms });
+        return Ok(forms);
+    }
+
+    [HttpGet("{id:guid}")]
+    [Authorize(Roles = "admin")]
+    public async Task<IActionResult> GetFormById(Guid id, CancellationToken ct)
+    {
+        var form = await formsService.GetFormByIdAsync(id, ct);
+        if (form is null) return NotFound();
+        return Ok(form);
     }
 
     [HttpPatch("{id:guid}/status")]
