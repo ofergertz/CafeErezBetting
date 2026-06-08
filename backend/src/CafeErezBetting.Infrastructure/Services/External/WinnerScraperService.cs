@@ -5,6 +5,7 @@ using CafeErezBetting.Core.Interfaces.Services;
 using CafeErezBetting.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
@@ -17,7 +18,7 @@ namespace CafeErezBetting.Infrastructure.Services.External;
 public class WinnerScraperService(
     AppDbContext db,
     IDistributedCache cache,
-    IHttpClientFactory httpClientFactory,
+    IConfiguration config,
     IHostEnvironment env,
     PlaywrightWinnerScraper playwright,
     ILogger<WinnerScraperService> logger
@@ -99,7 +100,9 @@ public class WinnerScraperService(
     /// </summary>
     private async Task<List<WinnerMatchDto>> ScrapeExternalAsync(CancellationToken ct)
     {
-        if (env.IsDevelopment())
+        // Use mock data in Development UNLESS WinnerScraper:UseRealData=true (for local debug)
+        var useRealData = config.GetValue<bool>("WinnerScraper:UseRealData", defaultValue: false);
+        if (env.IsDevelopment() && !useRealData)
         {
             await Task.Delay(50, ct);
             return GetMockData();
