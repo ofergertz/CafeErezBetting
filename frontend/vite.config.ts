@@ -15,11 +15,12 @@ export default defineConfig({
     host: true,
     proxy: {
       '/api': {
-        target: process.env.VITE_API_URL || 'http://localhost:5000',
+        // BACKEND_URL = Docker internal; VITE_API_URL = local dev override; fallback = localhost
+        target: process.env.BACKEND_URL || process.env.VITE_API_URL || 'http://localhost:5000',
         changeOrigin: true,
       },
       '/hubs': {
-        target: process.env.VITE_WS_URL || 'ws://localhost:5000',
+        target: process.env.WS_BACKEND_URL || process.env.VITE_WS_URL || 'ws://localhost:5000',
         ws: true,
         changeOrigin: true,
       },
