@@ -62,7 +62,12 @@ services:
       # USERPROFILE is set automatically on Windows (e.g. C:\Users\Ofer).
       # On Linux/CI USERPROFILE is unset — fallback to /tmp/nuget-packages (writable, dotnet downloads there).
       - ${USERPROFILE:-/tmp/nuget-packages}/.nuget/packages:/root/.nuget/packages
-    command: dotnet watch run --project src/CafeErezBetting.API --no-launch-profile
+    # 1. restore with --ignore-failed-sources: uses mounted host cache, skips nuget.org if unreachable
+    # 2. --no-restore on watch: don't try to restore again during hot-reload
+    command: >-
+      sh -c "dotnet restore src/CafeErezBetting.API/CafeErezBetting.API.csproj
+      --ignore-failed-sources
+      && dotnet watch run --no-restore --project src/CafeErezBetting.API --no-launch-profile"
 
   frontend:
     build:
