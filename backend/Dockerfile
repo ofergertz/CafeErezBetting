@@ -1,6 +1,12 @@
 # ── Dev stage ────────────────────────────────────────────────────────────────
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS dev
 WORKDIR /app
+# Pre-restore NuGet packages into the image layer so the container
+# does not need outbound internet access at runtime.
+COPY ["src/CafeErezBetting.API/CafeErezBetting.API.csproj", "src/CafeErezBetting.API/"]
+COPY ["src/CafeErezBetting.Core/CafeErezBetting.Core.csproj", "src/CafeErezBetting.Core/"]
+COPY ["src/CafeErezBetting.Infrastructure/CafeErezBetting.Infrastructure.csproj", "src/CafeErezBetting.Infrastructure/"]
+RUN dotnet restore "src/CafeErezBetting.API/CafeErezBetting.API.csproj"
 EXPOSE 5000
 # Chromium for Playwright scraper (WinnerScraperService, production only)
 RUN apt-get update && apt-get install -y --no-install-recommends \
