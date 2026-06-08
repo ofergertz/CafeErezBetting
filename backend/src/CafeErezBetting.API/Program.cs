@@ -46,6 +46,7 @@ builder.Services.AddHttpClient();
 
 // ─── Domain services ─────────────────────────────────────────────────────────
 builder.Services.AddScoped<IWinnerSyncService, WinnerScraperService>();
+builder.Services.AddSingleton<PlaywrightWinnerScraper>();
 builder.Services.AddScoped<IFormsService, FormsService>();
 builder.Services.AddScoped<IMatchNotificationService, SignalRNotificationService>();
 builder.Services.AddScoped<ICustomerService, CustomerService>();
