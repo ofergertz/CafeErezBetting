@@ -1,0 +1,67 @@
+name: Docker Smoke Test
+
+on:
+  push:
+    branches: [main, 'feat/**', 'fix/**', 'chore/**']
+  pull_request:
+    branches: [main]
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  docker-smoke:
+    name: Docker Smoke Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create .env for CI
+        run: |
+          cat > .env << 'EOF'
+          POSTGRES_DB=cafe_erez_betting
+          POSTGRES_USER=postgres
+          POSTGRES_PASSWORD=***
+          REDIS_PASSWORD=***
+          JWT_SECRET=ci-test-secret-min-32-chars-long-ok
+          JWT_EXPIRY_MINUTES=60
+          SMS_PROVIDER=inforu
+          SMS_API_KEY=dev-disabled
+          SMS_SENDER_ID=CafeErez
+          ASPNETCORE_ENVIRONMENT=Development
+          ASPNETCORE_URLS=http://+:5000
+          FRONTEND_URL=http://localhost:5173
+          CORS_ORIGINS=http://localhost:5173
+          VITE_API_URL=http://localhost:5000
+          VITE_WS_URL=ws://localhost:5000
+          EOF
+
+      - name: Start services
+        run: docker compose up -d postgres redis backend
+
+      - name: Wait for backend to be healthy
+        run: |
+          echo "Waiting for backend..."
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:5000/health; then
+              echo ""
+              echo "✅ Backend is up"
+              exit 0
+            fi
+            echo "Attempt $i/30 — retrying in 2s..."
+            sleep 2
+          done
+          echo "❌ Backend did not start in time"
+          docker compose logs backend
+          exit 1
+
+      - name: Verify health response
+        run: |
+          RESPONSE=$(curl -sf http://localhost:5000/health)
+          echo "Health response: $RESPONSE"
+          echo "$RESPONSE" | grep -q "healthy"
+
+      - name: Dump logs on failure
+        if: failure()
+        run: docker compose logs
