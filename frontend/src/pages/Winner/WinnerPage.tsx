@@ -17,10 +17,11 @@ export default function WinnerPage() {
   const [slipOpen, setSlipOpen] = useState(false)
   const betCount = useBetSlipStore((s) => s.items.length)
 
-  const { data: matches = [], isLoading, isError } = useQuery<WinnerMatch[]>({
+  const { data: matches = [], isLoading, isError, refetch } = useQuery<WinnerMatch[]>({
     queryKey: ['winner-matches'],
     queryFn: () => api.get<WinnerMatch[]>('/api/winner/matches'),
     refetchInterval: 60_000,
+    retry: 1,
   })
 
   // Live updates via SignalR
@@ -41,7 +42,10 @@ export default function WinnerPage() {
 
   if (isError) return (
     <div className="card">
-      <ErrorState message={t('common.error')} />
+      <ErrorState
+        message={t('common.error')}
+        onRetry={() => refetch()}
+      />
     </div>
   )
 

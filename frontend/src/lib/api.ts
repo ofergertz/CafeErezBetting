@@ -1,6 +1,10 @@
 import { useAuthStore } from '@/store/authStore'
 
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
+// Use relative URLs in dev so Vite proxy handles routing.
+// In production VITE_API_URL can point to the backend directly.
+const BASE_URL = import.meta.env.VITE_API_URL ?? ''
+
+const REQUEST_TIMEOUT_MS = 10_000
 
 class ApiError extends Error {
   constructor(
@@ -28,10 +32,24 @@ async function request<T>(
     headers['Authorization'] = `Bearer ${token}`
   }
 
-  const response = await fetch(`${BASE_URL}${endpoint}`, {
-    ...options,
-    headers,
-  })
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+
+  let response: Response
+  try {
+    response = await fetch(`${BASE_URL}${endpoint}`, {
+      ...options,
+      headers,
+      signal: controller.signal,
+    })
+  } catch (err) {
+    if ((err as Error).name === 'AbortError') {
+      throw new ApiError(0, 'Request timed out')
+    }
+    throw err
+  } finally {
+    clearTimeout(timeoutId)
+  }
 
   if (response.status === 401) {
     useAuthStore.getState().clearAuth()
