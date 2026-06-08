@@ -67,8 +67,10 @@ services:
       target: dev
     container_name: caferez_frontend
     environment:
-      VITE_API_URL: http://localhost:5000
-      VITE_WS_URL: ws://localhost:5000
+      # BACKEND_URL has no VITE_ prefix — not exposed to browser,
+      # used only by Vite proxy (server-side Node.js process)
+      BACKEND_URL: http://backend:5000
+      WS_BACKEND_URL: ws://backend:5000
     ports:
       - "5173:5173"
     depends_on:
