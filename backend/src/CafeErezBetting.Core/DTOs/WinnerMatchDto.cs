@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace CafeErezBetting.Core.DTOs;
 
 public record WinnerMatchDto(
@@ -13,7 +15,12 @@ public record WinnerMatchDto(
     DateTime LastUpdated
 );
 
-public record OddsDto(decimal Home, decimal Draw, decimal Away);
+// JSON keys must match frontend: '1', 'X', '2'
+public record OddsDto(
+    [property: JsonPropertyName("1")] decimal Home,
+    [property: JsonPropertyName("X")] decimal Draw,
+    [property: JsonPropertyName("2")] decimal Away
+);
 
 public record BetSlipItemDto(
     Guid   MatchId,
