@@ -42,7 +42,9 @@ jobs:
             --project src/CafeErezBetting.Infrastructure \
             --startup-project src/CafeErezBetting.API 2>&1)
           echo "$output"
-          if echo "$output" | grep -qi "pending"; then
+          # EF Core marks unapplied migrations as "MigrationName (Pending)"
+          # Ignore the warning "Pending status not shown" (no DB in CI)
+          if echo "$output" | grep -qi "(Pending)"; then
             echo "❌ Pending migrations detected — apply them before merging."
             exit 1
           fi
