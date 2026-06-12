@@ -1,13 +1,14 @@
 import { useState, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { useBetSlipStore } from '@/store/betSlipStore'
 import { useMatchesHub } from '@/hooks/useSignalR'
-import type { WinnerMatch } from '@/types'
+import { useAuthStore } from '@/store/authStore'
+import type { WinnerMatch, SyncStatus } from '@/types'
 import BetSlip from './BetSlip'
 import MatchCard from './MatchCard'
-import { CalendarClock, CheckCircle2, Trophy, Wifi } from 'lucide-react'
+import { CalendarClock, CheckCircle2, Trophy, Wifi, AlertTriangle, RefreshCw } from 'lucide-react'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ErrorState } from '@/components/ui/ErrorState'
 
@@ -51,13 +52,29 @@ export default function WinnerPage() {
   const queryClient = useQueryClient()
   const [slipOpen, setSlipOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<FilterTab>('all')
-  const betCount = useBetSlipStore((s) => s.items.length)
+  const betCount  = useBetSlipStore((s) => s.items.length)
+  const isAdmin   = useAuthStore((s) => s.isAdmin())
 
   const { data: matches = [], isLoading, isError, refetch } = useQuery<WinnerMatch[]>({
     queryKey: ['winner-matches'],
     queryFn: () => api.get<WinnerMatch[]>('/api/winner/matches'),
     refetchInterval: 60_000,
     retry: 1,
+  })
+
+  const { data: syncStatus } = useQuery<SyncStatus>({
+    queryKey: ['winner-sync-status'],
+    queryFn: () => api.get<SyncStatus>('/api/winner/sync-status'),
+    refetchInterval: 60_000,
+    retry: false,
+  })
+
+  const syncMutation = useMutation({
+    mutationFn: () => api.post<SyncStatus>('/api/winner/sync', {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['winner-matches'] })
+      queryClient.invalidateQueries({ queryKey: ['winner-sync-status'] })
+    },
   })
 
   const handleMatchesUpdated = useCallback((updated: unknown) => {
@@ -109,6 +126,29 @@ export default function WinnerPage() {
             </div>
           )}
         </div>
+
+        {/* Demo data warning + admin sync button */}
+        {syncStatus?.isMock && (
+          <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-4 text-sm" dir="rtl">
+            <AlertTriangle size={16} className="text-amber-600 flex-shrink-0" />
+            <span className="text-amber-800 flex-1">
+              <strong>נתוני Demo</strong> — מוצגים נתוני הדגמה.
+              {isAdmin
+                ? ' הסקראפר לא הצליח להתחבר לאתר ווינר (Playwright/Chromium נדרש).'
+                : ' הנתונים יתעדכנו בהמשך.'}
+            </span>
+            {isAdmin && (
+              <button
+                onClick={() => syncMutation.mutate()}
+                disabled={syncMutation.isPending}
+                className="flex items-center gap-1.5 bg-amber-600 text-white text-xs px-3 py-1.5 rounded-lg hover:bg-amber-700 disabled:opacity-50 flex-shrink-0"
+              >
+                <RefreshCw size={13} className={syncMutation.isPending ? 'animate-spin' : ''} />
+                {syncMutation.isPending ? 'מסנכרן...' : 'נסה שוב'}
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Filter Tabs */}
         <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-4">

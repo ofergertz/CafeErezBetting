@@ -54,7 +54,7 @@ public class WinnerScraperService(
         {
             logger.LogInformation("Winner sync started");
 
-            var matches = await ScrapeExternalAsync(ct);
+            var (matches, isMock) = await ScrapeExternalAsync(ct);
 
             if (matches.Count > 0)
             {
@@ -62,7 +62,7 @@ public class WinnerScraperService(
                 await CacheMatchesAsync(matches, ct);
             }
 
-            var dto = new SyncStatusDto(true, DateTime.UtcNow, null);
+            var dto = new SyncStatusDto(true, DateTime.UtcNow, null, isMock);
             await cache.SetStringAsync(
                 LastSyncKey,
                 JsonSerializer.Serialize(dto),
@@ -70,13 +70,13 @@ public class WinnerScraperService(
                 ct
             );
 
-            logger.LogInformation("Winner sync completed: {Count} matches", matches.Count);
+            logger.LogInformation("Winner sync completed: {Count} matches (mock={IsMock})", matches.Count, isMock);
             return dto;
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Winner sync failed, using cached data");
-            return new SyncStatusDto(false, DateTime.UtcNow, ex.Message);
+            return new SyncStatusDto(false, DateTime.UtcNow, ex.Message, true);
         }
     }
 
@@ -95,30 +95,36 @@ public class WinnerScraperService(
 
     /// <summary>
     /// Scrape from external source.
-    /// Development: returns mock data for fast local iteration.
-    /// Production: uses Playwright to scrape telesport.co.il.
+    /// Returns (matches, isMock) — callers can surface mock status to the UI.
+    /// Development: returns mock data unless WinnerScraper:UseRealData=true.
+    /// Production: uses Playwright to scrape the configured URL; falls back to mock on failure.
     /// </summary>
-    private async Task<List<WinnerMatchDto>> ScrapeExternalAsync(CancellationToken ct)
+    private async Task<(List<WinnerMatchDto> Matches, bool IsMock)> ScrapeExternalAsync(CancellationToken ct)
     {
         // Use mock data in Development UNLESS WinnerScraper:UseRealData=true (for local debug)
         var useRealData = config.GetValue<bool>("WinnerScraper:UseRealData", defaultValue: false);
         if (env.IsDevelopment() && !useRealData)
         {
             await Task.Delay(50, ct);
-            return GetMockData();
+            logger.LogDebug("Development mode: returning mock data (set WinnerScraper:UseRealData=true to scrape real data)");
+            return (GetMockData(), true);
         }
 
         try
         {
             var scraped = await playwright.ScrapeAsync(ct);
-            if (scraped.Count > 0) return scraped;
-            logger.LogWarning("Playwright returned 0 matches — falling back to mock data");
-            return GetMockData();
+            if (scraped.Count > 0)
+            {
+                logger.LogInformation("Playwright scrape succeeded: {Count} real matches", scraped.Count);
+                return (scraped, false);
+            }
+            logger.LogWarning("Playwright returned 0 matches — check selectors or site structure. Falling back to mock data");
+            return (GetMockData(), true);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Playwright scrape failed — falling back to mock data");
-            return GetMockData();
+            logger.LogError(ex, "Playwright scrape failed (Chromium may not be installed or site is unreachable) — falling back to mock data");
+            return (GetMockData(), true);
         }
     }
 
