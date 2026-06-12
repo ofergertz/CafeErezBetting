@@ -40,4 +40,4 @@ public record SubmitWinnerFormDto(
 
 public record FormSubmittedDto(Guid FormId, string Status);
 
-public record SyncStatusDto(bool Success, DateTime LastSync, string? Error);
+public record SyncStatusDto(bool Success, DateTime LastSync, string? Error, bool IsMock = false);

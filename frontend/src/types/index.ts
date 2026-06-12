@@ -175,6 +175,13 @@ export interface ApiError {
   errors?: Record<string, string[]>
 }
 
+export interface SyncStatus {
+  lastSync: string | null
+  success: boolean
+  isMock: boolean
+  error: string | null
+}
+
 export interface FormSubmittedDto {
   formId: string
   status: string

@@ -147,6 +147,7 @@
     "filterAll": "הכל",
     "filterDate": "תאריך",
     "status": {
+      "pending": "ממתין",
       "received": "התקבל",
       "approved": "אושר",
       "sent": "נשלח"

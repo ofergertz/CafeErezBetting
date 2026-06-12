@@ -5,34 +5,32 @@ import { api } from '@/lib/api'
 import { useNotificationsHub } from '@/hooks/useSignalR'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
+// Matches the FormSummaryDto returned by GET /api/forms (camelCase, lowercase status/type)
 interface BettingForm {
   id: string
   type: string
-  customerId?: string
-  customer?: { firstName: string; lastName: string }
-  // TODO: confirm with backend — 'Pending' is the pre-received initial state required
-  // for the acknowledge (קבלתי) button to be actionable. Without it the button is always disabled.
-  status: 'Pending' | 'Received' | 'Approved' | 'Sent'
+  customerName?: string | null
+  status: 'pending' | 'received' | 'approved' | 'sent'
   submittedAt: string
   receivedAt?: string
   approvedAt?: string
   sentAt?: string
 }
 
-const FORM_STATUSES = ['received', 'approved', 'sent'] as const
+const FORM_STATUSES = ['pending', 'received', 'approved', 'sent'] as const
 const FORM_TYPES = ['winner', 'toto', 'lotto', 'chance', 'lucky777'] as const
 
 // ── Status Badge ──────────────────────────────────────────────────────────────
 function StatusBadge({ status }: { status: BettingForm['status'] }) {
   const { t } = useTranslation()
   const map: Record<BettingForm['status'], { label: string; cls: string }> = {
-    Pending:  { label: t('forms.status.pending'),  cls: 'bg-gray-100 text-gray-600' },
-    Received: { label: t('forms.status.received'), cls: 'bg-orange-100 text-orange-700' },
-    Approved: { label: t('forms.status.approved'), cls: 'bg-blue-100 text-blue-700' },
-    Sent:     { label: t('forms.status.sent'),     cls: 'bg-green-100 text-green-700' },
+    pending:  { label: t('forms.status.pending'),  cls: 'bg-gray-100 text-gray-600' },
+    received: { label: t('forms.status.received'), cls: 'bg-orange-100 text-orange-700' },
+    approved: { label: t('forms.status.approved'), cls: 'bg-blue-100 text-blue-700' },
+    sent:     { label: t('forms.status.sent'),     cls: 'bg-green-100 text-green-700' },
   }
-  const { label, cls } = map[status]
-  return <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${cls}`}>{label}</span>
+  const entry = map[status] ?? { label: status, cls: 'bg-gray-100 text-gray-600' }
+  return <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${entry.cls}`}>{entry.label}</span>
 }
 
 // ── Format date ───────────────────────────────────────────────────────────────
@@ -61,9 +59,10 @@ export default function FormsPage() {
   if (filterDate) params.set('date', filterDate)
   const queryString = params.toString() ? `?${params.toString()}` : ''
 
+  // API returns BettingForm[] directly (not {forms: BettingForm[]})
   const { data, isLoading, isError } = useQuery({
     queryKey: ['forms', filterStatus, filterType, filterDate],
-    queryFn: () => api.get<{ forms: BettingForm[] }>(`/api/forms${queryString}`),
+    queryFn: () => api.get<BettingForm[]>(`/api/forms${queryString}`),
   })
 
   const statusMutation = useMutation({
@@ -74,14 +73,17 @@ export default function FormsPage() {
     },
   })
 
-  // Real-time SignalR
+  // Real-time SignalR: refresh list on any form event
   useNotificationsHub({
+    onNewForm: () => {
+      queryClient.invalidateQueries({ queryKey: ['forms'] })
+    },
     onFormStatusChanged: () => {
       queryClient.invalidateQueries({ queryKey: ['forms'] })
     },
   })
 
-  const forms = data?.forms ?? []
+  const forms = data ?? []
 
   return (
     <div dir="rtl" className="p-4 max-w-5xl mx-auto">
@@ -167,14 +169,12 @@ export default function FormsPage() {
                 </tr>
               )}
               {forms.map((form) => {
-                const customerName = form.customer
-                  ? `${form.customer.firstName} ${form.customer.lastName}`
-                  : t('forms.anonymous')
+                const customerName = form.customerName ?? t('forms.anonymous')
 
-                // Forward-only: disable each button once the form has reached or passed that state
-                const isReceived = form.status === 'Received' || form.status === 'Approved' || form.status === 'Sent'
-                const isApproved = form.status === 'Approved' || form.status === 'Sent'
-                const isSent = form.status === 'Sent'
+                // Forward-only workflow: pending → received → approved → sent
+                const isPending  = form.status === 'pending'
+                const isApproved = form.status === 'approved' || form.status === 'sent'
+                const isSent     = form.status === 'sent'
 
                 return (
                   <tr key={form.id} className="hover:bg-gray-50">
@@ -184,9 +184,9 @@ export default function FormsPage() {
                     <td className="px-4 py-3"><StatusBadge status={form.status} /></td>
                     <td className="px-4 py-3">
                       <div className="flex gap-1 flex-wrap">
-                        {/* Acknowledge */}
+                        {/* Acknowledge — enabled only for pending forms */}
                         <button
-                          disabled={isReceived || statusMutation.isPending}
+                          disabled={!isPending || statusMutation.isPending}
                           onClick={() => statusMutation.mutate({ id: form.id, status: 'received' })}
                           className="text-xs px-2 py-1 rounded bg-orange-100 text-orange-700 hover:bg-orange-200 disabled:opacity-40 disabled:cursor-not-allowed"
                         >

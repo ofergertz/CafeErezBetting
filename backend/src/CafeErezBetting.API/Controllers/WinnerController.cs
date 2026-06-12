@@ -31,16 +31,22 @@ public class WinnerController(IWinnerSyncService syncService, IDistributedCache 
     {
         var json = await cache.GetStringAsync("winner:last_sync", ct);
         if (json is null)
-            return Ok(new { lastSync = (DateTime?)null, success = false });
+            return Ok(new { lastSync = (DateTime?)null, success = false, isMock = true, error = (string?)null });
 
         try
         {
             var dto = JsonSerializer.Deserialize<SyncStatusDto>(json);
-            return Ok(new { lastSync = dto?.LastSync, success = dto?.Success ?? false });
+            return Ok(new
+            {
+                lastSync = dto?.LastSync,
+                success  = dto?.Success ?? false,
+                isMock   = dto?.IsMock  ?? true,
+                error    = dto?.Error,
+            });
         }
         catch
         {
-            return Ok(new { lastSync = (DateTime?)null, success = false });
+            return Ok(new { lastSync = (DateTime?)null, success = false, isMock = true, error = (string?)null });
         }
     }
 }

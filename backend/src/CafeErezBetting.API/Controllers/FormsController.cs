@@ -29,6 +29,9 @@ public class FormsController(IFormsService formsService, AppDbContext db, IMatch
     [Authorize]
     public async Task<IActionResult> SubmitToto([FromBody] SubmitTotoFormDto dto, CancellationToken ct)
     {
+        if (dto.Columns == null || dto.Columns.Count == 0)
+            return BadRequest(new { message = "At least one column is required." });
+
         try
         {
             // validate: column count and all picks present
@@ -44,7 +47,7 @@ public class FormsController(IFormsService formsService, AppDbContext db, IMatch
             Type       = FormType.Toto,
             CustomerId = dto.CustomerId,
             Payload    = JsonDocument.Parse(JsonSerializer.Serialize(dto)),
-            Status     = FormStatus.Received,
+            Status     = FormStatus.Pending,
         };
 
         db.BettingForms.Add(form);
@@ -70,7 +73,7 @@ public class FormsController(IFormsService formsService, AppDbContext db, IMatch
             Type       = FormType.Lotto,
             CustomerId = dto.CustomerId,
             Payload    = JsonDocument.Parse(JsonSerializer.Serialize(dto)),
-            Status     = FormStatus.Received,
+            Status     = FormStatus.Pending,
         };
 
         db.BettingForms.Add(form);
@@ -96,7 +99,7 @@ public class FormsController(IFormsService formsService, AppDbContext db, IMatch
             Type       = FormType.Chance,
             CustomerId = dto.CustomerId,
             Payload    = JsonDocument.Parse(JsonSerializer.Serialize(dto)),
-            Status     = FormStatus.Received,
+            Status     = FormStatus.Pending,
         };
 
         db.BettingForms.Add(form);
@@ -122,7 +125,7 @@ public class FormsController(IFormsService formsService, AppDbContext db, IMatch
             Type       = FormType.Lucky777,
             CustomerId = dto.CustomerId,
             Payload    = JsonDocument.Parse(JsonSerializer.Serialize(dto)),
-            Status     = FormStatus.Received,
+            Status     = FormStatus.Pending,
         };
 
         db.BettingForms.Add(form);

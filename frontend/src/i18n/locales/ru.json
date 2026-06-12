@@ -147,6 +147,7 @@
     "filterAll": "Все",
     "filterDate": "Дата",
     "status": {
+      "pending": "Ожидает",
       "received": "Получено",
       "approved": "Одобрено",
       "sent": "Отправлено"
