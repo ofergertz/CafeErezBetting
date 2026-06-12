@@ -19,7 +19,7 @@ public class FormsService(
             Type       = FormType.Winner,
             CustomerId = dto.CustomerId,
             Payload    = JsonDocument.Parse(JsonSerializer.Serialize(dto)),
-            Status     = FormStatus.Received,
+            Status     = FormStatus.Pending,
         };
 
         db.BettingForms.Add(form);
@@ -97,6 +97,7 @@ public class FormsService(
             case FormStatus.Received: form.ReceivedAt = DateTime.UtcNow; break;
             case FormStatus.Approved: form.ApprovedAt = DateTime.UtcNow; break;
             case FormStatus.Sent:     form.SentAt     = DateTime.UtcNow; break;
+            case FormStatus.Pending:  break;
         }
 
         await db.SaveChangesAsync(ct);

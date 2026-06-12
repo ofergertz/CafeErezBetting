@@ -147,6 +147,7 @@
     "filterAll": "All",
     "filterDate": "Date",
     "status": {
+      "pending": "Pending",
       "received": "Received",
       "approved": "Approved",
       "sent": "Sent"
