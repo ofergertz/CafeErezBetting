@@ -218,5 +218,5 @@ public class WinnerScraperService(
         new(m.Id, m.ExternalId, m.HomeTeam, m.AwayTeam, m.League,
             m.ScheduledAt, new(m.Odds1, m.OddsX, m.Odds2),
             m.Status.ToString().ToLower(), m.IsLive, m.LastUpdated,
-            BetType: null, Handicap: null);
+            BetType: null, Handicap: null, SubMarket: null);
 }

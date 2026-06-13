@@ -22,8 +22,8 @@ public class PlaywrightWinnerScraper(
     // Primary = telesport, secondary = livegames (automatic fallback)
     private static readonly string[] DefaultUrls =
     [
-        "https://www.telesport.co.il/winnerzonepage.aspx",
-        "https://www.livegames.co.il/winner",
+        "https://www.telesport.co.il/%D7%90%D7%96%D7%95%D7%A8%20%D7%95%D7%95%D7%99%D7%A0%D7%A8",
+        "https://www.livegames.co.il/winnerpage.aspx",
     ];
 
     // Known Israeli league names for league detection
@@ -296,6 +296,7 @@ public class PlaywrightWinnerScraper(
         var timeCell  = (string?)null;
         string? detectedBetType  = null;
         string? detectedHandicap = null;
+        int?    detectedSubMarket = null;
 
         foreach (var raw in cells)
         {
@@ -306,8 +307,14 @@ public class PlaywrightWinnerScraper(
             // Pure integer → match/round number, skip
             if (int.TryParse(cell, out _)) continue;
 
-            // ".223" or ".223 (6)" → Winner form number with leading dot, skip
-            if (Regex.IsMatch(cell, @"^\.\d+")) continue;
+            // ".223" or ".223 (6)" → Winner form number; extract sub-market count from "(N)" if present
+            if (Regex.IsMatch(cell, @"^\.\d+"))
+            {
+                var subMatch = Regex.Match(cell, @"\((\d+)\)");
+                if (subMatch.Success && int.TryParse(subMatch.Groups[1].Value, out var n))
+                    detectedSubMarket = n;
+                continue;
+            }
 
             // Known status text / JS boolean fields
             if (SkipWords.Contains(cell)) continue;
@@ -378,7 +385,7 @@ public class PlaywrightWinnerScraper(
             index, homeTeam, awayTeam, odds[0], odds[1], odds[2], scheduledAt);
 
         return Build(index, homeTeam, awayTeam, league, scheduledAt,
-            odds[0], odds[1], odds[2], isLive, detectedBetType, detectedHandicap);
+            odds[0], odds[1], odds[2], isLive, detectedBetType, detectedHandicap, detectedSubMarket);
     }
 
     // ── Text-based parser (fallback for div/span layouts) ─────────────────────
@@ -457,7 +464,7 @@ public class PlaywrightWinnerScraper(
     private static WinnerMatchDto Build(
         int index, string home, string away, string league,
         DateTime scheduledAt, decimal o1, decimal oX, decimal o2, bool isLive,
-        string? betType = null, string? handicap = null)
+        string? betType = null, string? handicap = null, int? subMarket = null)
         => new(
             Guid.NewGuid(),
             $"scraped-{index:000}",
@@ -467,7 +474,8 @@ public class PlaywrightWinnerScraper(
             isLive,
             DateTime.UtcNow,
             betType,
-            handicap);
+            handicap,
+            subMarket);
 
     /// <summary>
     /// Strips invisible Unicode directional and format characters that prefix RTL site content.
