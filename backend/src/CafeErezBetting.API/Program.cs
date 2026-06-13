@@ -53,11 +53,21 @@ builder.Services.AddHttpClient("telesport", c =>
     c.DefaultRequestHeaders.Add("Accept", "application/json, text/plain, */*");
     c.Timeout = TimeSpan.FromSeconds(15);
 });
+builder.Services.AddHttpClient("livegames", c =>
+{
+    c.DefaultRequestHeaders.Add("User-Agent",
+        "Mozilla/5.0 (Linux; Android 11; Pixel 5) AppleWebKit/537.36 " +
+        "(KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36");
+    c.DefaultRequestHeaders.Add("Referer", "https://m.livegames.co.il/");
+    c.DefaultRequestHeaders.Add("Accept-Language", "he-IL,he;q=0.9,en;q=0.8");
+    c.DefaultRequestHeaders.Add("Accept", "application/json, text/plain, */*");
+    c.Timeout = TimeSpan.FromSeconds(15);
+});
 
 // ─── Domain services ─────────────────────────────────────────────────────────
 builder.Services.AddScoped<IWinnerSyncService, WinnerScraperService>();
-builder.Services.AddSingleton<PlaywrightWinnerScraper>();
 builder.Services.AddScoped<TelesportApiClient>();
+builder.Services.AddScoped<LivegamesApiClient>();
 builder.Services.AddScoped<ITotoSyncService, TotoSyncService>();
 builder.Services.AddSingleton<PlaywrightTotoScraper>();
 builder.Services.AddScoped<IFormsService, FormsService>();
