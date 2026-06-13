@@ -67,8 +67,11 @@ public class WinnerScraperService(
 
             if (matches.Count > 0)
             {
-                try { await PersistMatchesAsync(matches, ct); }
-                catch (Exception ex) { logger.LogWarning(ex, "DB persist failed — cache will still be updated"); }
+                if (!isMock)
+                {
+                    try { await PersistMatchesAsync(matches, ct); }
+                    catch (Exception ex) { logger.LogWarning(ex, "DB persist failed — cache will still be updated"); }
+                }
 
                 await CacheMatchesAsync(matches, ct);
             }
@@ -154,6 +157,17 @@ public class WinnerScraperService(
 
     private async Task PersistMatchesAsync(List<WinnerMatchDto> matches, CancellationToken ct)
     {
+        // Remove stale records not in current scrape (cleans up mock data + expired matches)
+        var currentIds = matches.Select(m => m.ExternalId).ToHashSet();
+        var stale = await db.WinnerMatches
+            .Where(m => !currentIds.Contains(m.ExternalId))
+            .ToListAsync(ct);
+        if (stale.Count > 0)
+        {
+            db.WinnerMatches.RemoveRange(stale);
+            logger.LogInformation("Removed {Count} stale/mock matches from DB", stale.Count);
+        }
+
         foreach (var dto in matches)
         {
             var existing = await db.WinnerMatches

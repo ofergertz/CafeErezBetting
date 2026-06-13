@@ -9,19 +9,20 @@ namespace CafeErezBetting.Infrastructure.Services.External;
 
 /// <summary>
 /// Scrapes live winner odds from telesport.co.il or livegames.co.il using Playwright.
+/// Tries URLs in order; on 0 results falls back to the next URL automatically.
 /// Configurable via appsettings WinnerScraper section.
-/// Both sites require a real browser (JavaScript rendering + bot protection).
-///
-/// Prerequisites: run `playwright install chromium` or use the provided Docker image
-/// (PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium).
 /// </summary>
 public class PlaywrightWinnerScraper(
     IConfiguration config,
     ILogger<PlaywrightWinnerScraper> logger
 )
 {
-    private static readonly string DefaultUrl =
-        "https://www.telesport.co.il/winnerzonepage.aspx";
+    // Primary = telesport, secondary = livegames (automatic fallback)
+    private static readonly string[] DefaultUrls =
+    [
+        "https://www.telesport.co.il/winnerzonepage.aspx",
+        "https://www.livegames.co.il/winner",
+    ];
 
     // Known Israeli league names for league detection
     private static readonly (string Keyword, string Display)[] LeagueKeywords =
@@ -38,20 +39,34 @@ public class PlaywrightWinnerScraper(
         ("Ligue 1",    "Ligue 1"),
     ];
 
+    // Cells that are definitely not team names
+    private static readonly HashSet<string> SkipWords = new(StringComparer.OrdinalIgnoreCase)
+    {
+        // Hebrew match statuses
+        "הסתיים", "לא התחיל", "בשידור חי", "נדחה", "בוטל", "מושהה", "הפסקה",
+        // JavaScript boolean fields
+        "True", "False",
+        // Table header labels
+        "1X2",
+    };
+
     // ── Public entry point ────────────────────────────────────────────────────
 
     public async Task<List<WinnerMatchDto>> ScrapeAsync(CancellationToken ct = default)
     {
-        var url            = config["WinnerScraper:Url"] ?? DefaultUrl;
-        var chromiumPath   = Environment.GetEnvironmentVariable("PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH");
-        logger.LogInformation("Playwright scraper starting → {Url}  (chromium={Path})", url, chromiumPath ?? "bundled");
+        var configUrl    = config["WinnerScraper:Url"];
+        var urls         = configUrl is not null ? [configUrl] : DefaultUrls;
+        var chromiumPath = Environment.GetEnvironmentVariable("PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH");
+
+        logger.LogInformation("Playwright scraper starting (chromium={Path})", chromiumPath ?? "bundled");
 
         using var playwright = await Playwright.CreateAsync();
         await using var browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
         {
             Headless       = true,
-            ExecutablePath = chromiumPath,   // null = Playwright's bundled Chromium
-            Args           = [
+            ExecutablePath = chromiumPath,
+            Args           =
+            [
                 "--no-sandbox",
                 "--disable-setuid-sandbox",
                 "--disable-dev-shm-usage",
@@ -64,28 +79,56 @@ public class PlaywrightWinnerScraper(
 
         logger.LogInformation("Chromium launched successfully");
 
-        var context = await browser.NewContextAsync(new BrowserNewContextOptions
+        foreach (var url in urls)
         {
-            UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
-                        "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-            Locale              = "he-IL",
-            ViewportSize        = new ViewportSize { Width = 1280, Height = 800 },
-            JavaScriptEnabled   = true,
-        });
+            try
+            {
+                var context = await browser.NewContextAsync(new BrowserNewContextOptions
+                {
+                    UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
+                                "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+                    Locale            = "he-IL",
+                    ViewportSize      = new ViewportSize { Width = 1280, Height = 800 },
+                    JavaScriptEnabled = true,
+                });
 
-        // Mask common automation signals
-        await context.AddInitScriptAsync(@"
-            Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
-            window.chrome = { runtime: {} };
-        ");
+                await context.AddInitScriptAsync(@"
+                    Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+                    window.chrome = { runtime: {} };
+                ");
 
-        var page = await context.NewPageAsync();
-        await page.SetExtraHTTPHeadersAsync(new Dictionary<string, string>
-        {
-            ["Accept-Language"] = "he-IL,he;q=0.9,en;q=0.8",
-            ["Referer"]         = "https://www.google.co.il/",
-        });
+                var page = await context.NewPageAsync();
+                await page.SetExtraHTTPHeadersAsync(new Dictionary<string, string>
+                {
+                    ["Accept-Language"] = "he-IL,he;q=0.9,en;q=0.8",
+                    ["Referer"]         = "https://www.google.co.il/",
+                });
 
+                var matches = await TryScrapePageAsync(page, url);
+                await context.CloseAsync();
+
+                if (matches.Count > 0)
+                {
+                    logger.LogInformation("Playwright scraper finished — {Count} matches from {Url}", matches.Count, url);
+                    return matches;
+                }
+
+                logger.LogWarning("0 matches from {Url} — trying next URL", url);
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Scrape failed for {Url} — trying next URL", url);
+            }
+        }
+
+        logger.LogWarning("All URLs returned 0 matches");
+        return [];
+    }
+
+    // ── Per-URL navigation + extraction ──────────────────────────────────────
+
+    private async Task<List<WinnerMatchDto>> TryScrapePageAsync(IPage page, string url)
+    {
         try
         {
             await page.GotoAsync(url, new PageGotoOptions
@@ -101,20 +144,16 @@ public class PlaywrightWinnerScraper(
         }
         catch (PlaywrightException ex) when (ex.Message.Contains("Timeout"))
         {
-            // Timeout waiting for NetworkIdle — page may still have content, continue
             logger.LogWarning("Navigation timeout on {Url} — attempting to parse anyway", url);
         }
 
-        // Give JS extra time to render dynamic content
         await page.WaitForTimeoutAsync(5000);
 
         logger.LogInformation("Page loaded: title='{Title}', url='{Url}'",
             await page.TitleAsync(), page.Url);
 
         var matches = await ExtractMatchesAsync(page, url);
-        logger.LogInformation("Playwright scraper finished — {Count} matches found", matches.Count);
 
-        // Screenshot for debugging when nothing was found
         if (matches.Count == 0)
             await TakeDebugScreenshotAsync(page);
 
@@ -129,10 +168,8 @@ public class PlaywrightWinnerScraper(
         var now         = DateTime.UtcNow;
         var rowSelector = config["WinnerScraper:RowSelector"] ?? "tr";
 
-        // ── Step 1: choose row elements ───────────────────────────────────────
         IReadOnlyList<IElementHandle> rows;
 
-        // First try any site-specific selectors from config / common patterns
         var specificSelectors = new[]
         {
             ".winner-row", ".match-row", ".game-row", ".bet-row",
@@ -155,7 +192,6 @@ public class PlaywrightWinnerScraper(
             ? specificRows
             : await page.QuerySelectorAllAsync(rowSelector);
 
-        // Div-based layout fallback (some SPAs don't use tables)
         if (rows.Count == 0)
         {
             rows = await page.QuerySelectorAllAsync(
@@ -170,17 +206,13 @@ public class PlaywrightWinnerScraper(
         }
 
         logger.LogInformation("Processing {Count} candidate rows", rows.Count);
-
-        // ── Step 2: log first 3 rows for diagnostics ──────────────────────────
         await LogSampleRowsAsync(rows, maxRows: 3);
 
-        // ── Step 3: parse each row ────────────────────────────────────────────
         var index = 0;
         foreach (var row in rows)
         {
             try
             {
-                // Primary: cell-based parsing (reliable for table layouts)
                 var cells = await row.QuerySelectorAllAsync("td");
                 WinnerMatchDto? match = null;
 
@@ -193,7 +225,6 @@ public class PlaywrightWinnerScraper(
                     match = TryParseFromCells(cellTexts, now, index);
                 }
 
-                // Fallback: text-based parsing (works for div/span layouts)
                 if (match is null)
                 {
                     var rowText = (await row.InnerTextAsync()).Trim();
@@ -220,13 +251,25 @@ public class PlaywrightWinnerScraper(
         return results;
     }
 
-    // ── Cell-based parser (primary — works for any <table> layout) ────────────
+    // ── Cell-based parser ─────────────────────────────────────────────────────
 
     /// <summary>
-    /// Parses a list of &lt;td&gt; cell values from a single row.
-    /// Strategy: identify cells by content type — odds (1.01–49.99), time (HH:mm),
-    /// pure integers (match numbers to skip), and text (team / league).
-    /// This is site-agnostic and handles any column ordering.
+    /// Parses a list of &lt;td&gt; cell values from a telesport.co.il / livegames.co.il row.
+    ///
+    /// Row structure (RTL order):
+    ///   [.223 (6)] [★] [status/time] [HomeTeam - AwayTeam] [S,D] [odd1] [oddX] [odd2] [score]
+    ///
+    /// Filters applied per cell:
+    ///   - Pure integers      → match/round numbers, skip
+    ///   - ^\.\d+             → dot-prefixed Winner form number (.223, .4), skip
+    ///   - SkipWords          → status text (הסתיים) and JS booleans (True/False), skip
+    ///   - ^\([^)]+\)$        → parenthetical only "(6)", "(7)", skip
+    ///   - All-ASCII ≤5 chars → bet type codes (S,D), skip
+    ///   - IsTimeToken        → timeCell (HH:mm)
+    ///   - IsScoreToken       → score like "2:3", skip
+    ///   - Any decimal        → odds if 1.01–49.99, else skip — never a team name
+    ///   - No letter chars    → skip (symbols, dash-only, numbers with punctuation)
+    ///   - Contains " - "     → split as "HomeTeam - AwayTeam"
     /// </summary>
     private WinnerMatchDto? TryParseFromCells(List<string> cells, DateTime baseTime, int index)
     {
@@ -242,38 +285,63 @@ public class PlaywrightWinnerScraper(
             // Pure integer → match/round number, skip
             if (int.TryParse(cell, out _)) continue;
 
-            // HH:mm or H:mm → time
+            // ".223" or ".223 (6)" → Winner form number with leading dot, skip
+            if (Regex.IsMatch(cell, @"^\.\d+")) continue;
+
+            // Known status text / JS boolean fields
+            if (SkipWords.Contains(cell)) continue;
+
+            // Parenthetical-only like "(6)", "(7)" → market count, skip
+            if (Regex.IsMatch(cell, @"^\([^)]+\)$")) continue;
+
+            // All-ASCII short codes: "S,D", "1X", "X2", "12", "SD" etc.
+            if (Regex.IsMatch(cell, @"^[A-Z0-9,./]+$") && cell.Length <= 5) continue;
+
+            // HH:mm or H:mm → time  (must precede IsScoreToken — "18:30" would pass both)
             if (IsTimeToken(cell) && timeCell is null)
             {
                 timeCell = cell;
                 continue;
             }
 
-            // Decimal in odds range → collect as odds
-            if (TryParseDecimal(cell, out var d) && d is >= 1.01m and <= 49.99m)
+            // Score token like "2:3" → skip
+            if (IsScoreToken(cell)) continue;
+
+            // Any decimal → odds (if in range) or skip — never a team name
+            if (TryParseDecimal(cell, out var d))
             {
-                odds.Add(d);
+                if (d is >= 1.01m and <= 49.99m)
+                    odds.Add(d);
                 continue;
             }
 
-            // Anything else that's long enough → team name or league
+            // Must contain at least one letter
+            if (!HasLetterChar(cell)) continue;
+
+            // "HomeTeam - AwayTeam" in one cell → split
+            if (cell.Contains(" - "))
+            {
+                var sep   = cell.IndexOf(" - ", StringComparison.Ordinal);
+                var part1 = CleanTeamName(cell[..sep].Trim());
+                var part2 = CleanTeamName(cell[(sep + 3)..].Trim());
+                if (part1.Length >= 2) textCells.Add(part1);
+                if (part2.Length >= 2) textCells.Add(part2);
+                continue;
+            }
+
             if (cell.Length >= 2)
-                textCells.Add(cell);
+                textCells.Add(CleanTeamName(cell));
         }
 
-        // Need exactly 3 odds and at least 2 text cells (home + away teams)
         if (odds.Count < 3 || textCells.Count < 2) return null;
 
         var scheduledAt = ParseTime(timeCell, baseTime);
         var league      = DetectLeague(textCells) ?? "ווינר";
-
-        // Remove league from text cells — remaining are team names
-        var teamCells = textCells.Where(t => t != league).ToList();
-        if (teamCells.Count < 2) teamCells = textCells; // fallback
+        var teamCells   = textCells.Where(t => t != league).ToList();
+        if (teamCells.Count < 2) teamCells = textCells;
 
         var homeTeam = teamCells[0].Trim();
-        var awayTeam = teamCells[^1].Trim();   // last text cell
-
+        var awayTeam = teamCells[^1].Trim();
         if (homeTeam.Length < 2 || awayTeam.Length < 2 || homeTeam == awayTeam) return null;
 
         var isLive = scheduledAt <= DateTime.UtcNow;
@@ -284,12 +352,8 @@ public class PlaywrightWinnerScraper(
         return Build(index, homeTeam, awayTeam, league, scheduledAt, odds[0], odds[1], odds[2], isLive);
     }
 
-    // ── Text-based parser (fallback — for div/span layouts) ───────────────────
+    // ── Text-based parser (fallback for div/span layouts) ─────────────────────
 
-    /// <summary>
-    /// Parses a row's raw inner text when no &lt;td&gt; cells exist.
-    /// Splits on tab/newline, then looks for 3 consecutive odds values.
-    /// </summary>
     private WinnerMatchDto? TryParseFromText(string text, DateTime baseTime, int index)
     {
         if (string.IsNullOrWhiteSpace(text)) return null;
@@ -323,7 +387,13 @@ public class PlaywrightWinnerScraper(
 
         if (odds.Count < 3 || firstOddsIdx < 2) return null;
 
-        var meta      = parts.Take(firstOddsIdx).Where(p => !int.TryParse(p, out _)).ToArray();
+        var meta = parts.Take(firstOddsIdx)
+            .Where(p => !int.TryParse(p, out _)
+                     && !Regex.IsMatch(p, @"^\.\d+")
+                     && !SkipWords.Contains(p)
+                     && HasLetterChar(p))
+            .ToArray();
+
         if (meta.Length < 2) return null;
 
         var startIdx    = 0;
@@ -370,6 +440,28 @@ public class PlaywrightWinnerScraper(
         => s.Length is >= 4 and <= 5
            && s.Contains(':')
            && TimeSpan.TryParse(s, out _);
+
+    private static bool IsScoreToken(string s)
+    {
+        var idx = s.IndexOf(':');
+        if (idx < 1 || idx >= s.Length - 1) return false;
+        return int.TryParse(s.AsSpan(0, idx), out _)
+            && int.TryParse(s.AsSpan(idx + 1), out _);
+    }
+
+    private static bool HasLetterChar(string s)
+    {
+        foreach (var c in s)
+            if (char.IsLetter(c)) return true;
+        return false;
+    }
+
+    /// <summary>Strips trailing handicap notation like "(+1)", "(-1.5)", "(2.5)".</summary>
+    private static string CleanTeamName(string s)
+    {
+        var cleaned = Regex.Replace(s, @"\s*\([^)]*\)\s*$", "").Trim();
+        return cleaned.Length >= 2 ? cleaned : s;
+    }
 
     private static DateTime ParseTime(string? timeStr, DateTime baseTime)
     {
