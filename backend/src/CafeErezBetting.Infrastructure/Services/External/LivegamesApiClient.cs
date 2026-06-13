@@ -57,7 +57,7 @@ public class LivegamesApiClient(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "LivegamesAPI: request failed");
+            logger.LogWarning(ex, "LivegamesAPI: request failed");
             return [];
         }
     }
