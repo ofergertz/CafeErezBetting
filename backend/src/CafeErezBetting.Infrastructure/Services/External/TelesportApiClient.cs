@@ -39,7 +39,7 @@ public class TelesportApiClient(
         var date    = DateTime.Today.ToString("yyyy-MM-ddT00:00:00");
         var url     = $"https://www.telesport.co.il/ajaxactions/winnerzonepage.ashx" +
                       $"?c={apiKey}&DateNow={Uri.EscapeDataString(date)}" +
-                      $"&winnerPage=updateWinnerTablesByDate&program=1&allGames=false";
+                      $"&winnerPage=updateWinnerTablesByDate&program=1&allGames=true";
 
         logger.LogInformation("TelesportAPI: fetching {Url}", url);
 
@@ -90,7 +90,9 @@ public class TelesportApiClient(
             if (homeTeam.Length < 2 || awayTeam.Length < 2) continue;
 
             var (isLive, minute) = ParseLiveStatus(r.StatusNameDisplay);
-            var score = BuildScore(r, isLive);
+            var isFinished = !isLive && r.Result1.HasValue && r.Result2.HasValue;
+            var score = (isLive || isFinished) && r.Result1.HasValue && r.Result2.HasValue
+                ? $"{r.Result1}-{r.Result2}" : null;
 
             var betType = r.TypeName is "רגיל" or null ? null : r.TypeName;
 
@@ -104,6 +106,7 @@ public class TelesportApiClient(
 
             var sub = subMarketCount.TryGetValue(r.GameId, out var cnt) ? cnt : (int?)null;
             var league = r.LeagueNameDisplay ?? "ווינר";
+            var status = isLive ? "live" : isFinished ? "finished" : "upcoming";
 
             result.Add(new WinnerMatchDto(
                 Guid.NewGuid(),
@@ -113,7 +116,7 @@ public class TelesportApiClient(
                 league,
                 r.BetCloseDate,
                 new OddsDto(r.Rate1.Value, r.RateX, r.Rate2.Value),
-                isLive ? "live" : "upcoming",
+                status,
                 isLive,
                 DateTime.UtcNow,
                 betType,
@@ -187,12 +190,4 @@ public class TelesportApiClient(
         return (false, null);
     }
 
-    // ── Score helpers ─────────────────────────────────────────────────────────
-
-    private static string? BuildScore(TelesportWinnerRecord r, bool isLive)
-    {
-        if (!isLive) return null;
-        if (r.Result1 is null || r.Result2 is null) return null;
-        return $"{r.Result1}-{r.Result2}";
-    }
 }
