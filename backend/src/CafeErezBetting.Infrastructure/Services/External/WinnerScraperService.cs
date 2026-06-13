@@ -95,8 +95,8 @@ public class WinnerScraperService(
     public async Task<List<WinnerMatchDto>> ScrapeFromSourceAsync(int sourceIndex, CancellationToken ct = default)
     {
         logger.LogInformation("Direct scrape from source {Index}", sourceIndex);
-        // 0 = Telesport API, 1 = Livegames API
-        return sourceIndex == 1
+        // 1 = Telesport API, 2 = Livegames API
+        return sourceIndex == 2
             ? await livegamesApi.FetchWinnerMatchesAsync(ct)
             : await telesportApi.FetchWinnerMatchesAsync(ct);
     }

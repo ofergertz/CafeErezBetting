@@ -128,7 +128,7 @@ export default function WinnerPage() {
   const queryClient = useQueryClient()
   const [slipOpen, setSlipOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<FilterTab>('all')
-  const [selectedSource, setSelectedSource] = useState<number>(0)
+  const [selectedSource, setSelectedSource] = useState<number>(1)
   const betCount = useBetSlipStore((s) => s.items.length)
 
   const { data: sources = [] } = useQuery<Source[]>({
@@ -146,8 +146,8 @@ export default function WinnerPage() {
   })
 
   const handleMatchesUpdated = useCallback((updated: unknown) => {
-    if (selectedSource === 0)
-      queryClient.setQueryData(['winner-matches', 0], updated)
+    if (selectedSource === 1)
+      queryClient.setQueryData(['winner-matches', 1], updated)
   }, [queryClient, selectedSource])
 
   useMatchesHub(handleMatchesUpdated)

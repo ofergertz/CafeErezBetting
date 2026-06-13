@@ -20,7 +20,7 @@ public class WinnerController(
     public IActionResult GetSources()
     {
         var urls = config.GetSection("Scrapers:Winner:Urls").Get<string[]>() ?? [];
-        var sources = urls.Select((url, i) => new { index = i, name = $"מקור {i + 1}", url }).ToArray();
+        var sources = urls.Select((url, i) => new { index = i + 1, name = $"מקור {i + 1}", url }).ToArray();
         return Ok(sources);
     }
 
