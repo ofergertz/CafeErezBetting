@@ -279,9 +279,15 @@ export default function WinnerPage() {
 
         {/* Matches — grouped by league */}
         {visibleMatches.length === 0 ? (
-          <div className="card">
-            <EmptyState icon={Trophy} message={t('common.noData')} />
-          </div>
+          isFetching ? (
+            <div className="flex justify-center py-10">
+              <div className="w-6 h-6 border-2 border-[--color-accent] border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : (
+            <div className="card">
+              <EmptyState icon={Trophy} message={t('common.noData')} />
+            </div>
+          )
         ) : (
           <div className="space-y-3">
             {leagueOrder.map(league => (
