@@ -70,17 +70,65 @@ public class PlaywrightWinnerScraper(
 
     // ── Public entry point ────────────────────────────────────────────────────
 
-    public async Task<List<WinnerMatchDto>> ScrapeAsync(int sourceIndex = 0, CancellationToken ct = default)
+    /// <summary>
+    /// Scrapes all configured URLs in parallel using a single browser instance.
+    /// Results are merged and deduplicated by (homeTeam, awayTeam).
+    /// Use this for background sync to get the fastest and most complete data.
+    /// </summary>
+    public async Task<List<WinnerMatchDto>> ScrapeAllAsync(CancellationToken ct = default)
     {
-        var urls         = GetConfigUrls();
-        var url          = sourceIndex < urls.Length ? urls[sourceIndex] : urls[0];
-        var chromiumPath = Environment.GetEnvironmentVariable("PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH");
-
-        logger.LogInformation("Playwright scraper starting — source {Index}: {Url} (chromium={Path})",
-            sourceIndex, url, chromiumPath ?? "bundled");
+        var urls = GetConfigUrls();
+        logger.LogInformation("Playwright parallel scrape — {Count} sources", urls.Length);
 
         using var playwright = await Playwright.CreateAsync();
-        await using var browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
+        await using var browser = await LaunchBrowserAsync(playwright);
+
+        logger.LogInformation("Chromium launched — starting parallel page loads");
+
+        var tasks = urls.Select((url, i) => ScrapeInContextAsync(browser, url, i, ct)).ToArray();
+        var resultsBySource = await Task.WhenAll(tasks);
+
+        // Merge and deduplicate by team pair (both sites show the same Winner matches)
+        var seen   = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var merged = new List<WinnerMatchDto>();
+        foreach (var sourceResults in resultsBySource)
+        {
+            foreach (var m in sourceResults)
+            {
+                var key = $"{m.HomeTeam.Trim().ToLowerInvariant()}|{m.AwayTeam.Trim().ToLowerInvariant()}";
+                if (seen.Add(key)) merged.Add(m);
+            }
+        }
+
+        logger.LogInformation("Parallel scrape complete: {Total} unique matches from {N} sources",
+            merged.Count, resultsBySource.Length);
+        return merged;
+    }
+
+    /// <summary>Scrapes a single configured source by index. Used by the admin source-picker dropdown.</summary>
+    public async Task<List<WinnerMatchDto>> ScrapeAsync(int sourceIndex = 0, CancellationToken ct = default)
+    {
+        var urls = GetConfigUrls();
+        var url  = sourceIndex < urls.Length ? urls[sourceIndex] : urls[0];
+
+        logger.LogInformation("Playwright single-source scrape — source {Index}: {Url}", sourceIndex, url);
+
+        using var playwright = await Playwright.CreateAsync();
+        await using var browser = await LaunchBrowserAsync(playwright);
+
+        logger.LogInformation("Chromium launched successfully");
+
+        var matches = await ScrapeInContextAsync(browser, url, sourceIndex, ct);
+        logger.LogInformation("Single-source scrape finished — {Count} matches from {Url}", matches.Count, url);
+        return matches;
+    }
+
+    // ── Shared browser helpers ────────────────────────────────────────────────
+
+    private static Task<IBrowser> LaunchBrowserAsync(IPlaywright playwright)
+    {
+        var chromiumPath = Environment.GetEnvironmentVariable("PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH");
+        return playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
         {
             Headless       = true,
             ExecutablePath = chromiumPath,
@@ -95,13 +143,15 @@ public class PlaywrightWinnerScraper(
                 "--window-size=1280,800",
             ],
         });
+    }
 
-        logger.LogInformation("Chromium launched successfully");
-
+    private async Task<List<WinnerMatchDto>> ScrapeInContextAsync(
+        IBrowser browser, string url, int sourceIndex, CancellationToken ct)
+    {
         var context = await browser.NewContextAsync(new BrowserNewContextOptions
         {
-            UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
-                        "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+            UserAgent         = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
+                                "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
             Locale            = "he-IL",
             ViewportSize      = new ViewportSize { Width = 1280, Height = 800 },
             JavaScriptEnabled = true,
@@ -119,11 +169,16 @@ public class PlaywrightWinnerScraper(
             ["Referer"]         = "https://www.google.co.il/",
         });
 
-        var matches = await TryScrapePageAsync(page, url);
-        await context.CloseAsync();
-
-        logger.LogInformation("Playwright scraper finished — {Count} matches from {Url}", matches.Count, url);
-        return matches;
+        try
+        {
+            var matches = await TryScrapePageAsync(page, url);
+            logger.LogInformation("Source {Index} ({Url}): {Count} matches", sourceIndex, url, matches.Count);
+            return matches;
+        }
+        finally
+        {
+            await context.CloseAsync();
+        }
     }
 
     // ── Per-URL navigation + extraction ──────────────────────────────────────
@@ -134,8 +189,8 @@ public class PlaywrightWinnerScraper(
         {
             await page.GotoAsync(url, new PageGotoOptions
             {
-                WaitUntil = WaitUntilState.NetworkIdle,
-                Timeout   = 45_000,
+                WaitUntil = WaitUntilState.Load,
+                Timeout   = 30_000,
             });
         }
         catch (PlaywrightException ex) when (ex.Message.Contains("net::ERR"))
@@ -148,7 +203,7 @@ public class PlaywrightWinnerScraper(
             logger.LogWarning("Navigation timeout on {Url} — attempting to parse anyway", url);
         }
 
-        await page.WaitForTimeoutAsync(5000);
+        await page.WaitForTimeoutAsync(2000);
 
         logger.LogInformation("Page loaded: title='{Title}', url='{Url}'",
             await page.TitleAsync(), page.Url);
