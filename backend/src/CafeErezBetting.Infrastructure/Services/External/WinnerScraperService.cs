@@ -217,5 +217,6 @@ public class WinnerScraperService(
     private static WinnerMatchDto ToDto(WinnerMatch m) =>
         new(m.Id, m.ExternalId, m.HomeTeam, m.AwayTeam, m.League,
             m.ScheduledAt, new(m.Odds1, m.OddsX, m.Odds2),
-            m.Status.ToString().ToLower(), m.IsLive, m.LastUpdated);
+            m.Status.ToString().ToLower(), m.IsLive, m.LastUpdated,
+            BetType: null, Handicap: null);
 }

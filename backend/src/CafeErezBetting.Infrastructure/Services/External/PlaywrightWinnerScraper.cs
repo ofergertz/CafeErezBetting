@@ -52,6 +52,14 @@ public class PlaywrightWinnerScraper(
         "1X2",
     };
 
+    // Known bet-type prefixes in Hebrew (from telesport/livegames bet type column)
+    private static readonly string[] BetTypePrefixes =
+    [
+        "סך הכל קרנות", "סך הכל שערים", "מעל/מתחת שערים", "מעל/מתחת קרנות",
+        "מעל/מתחת", "דאבל צ'אנס", "דאבל צאנס", "אסיאן הנדיקפ", "אסיאן",
+        "מי ינצח", "תוצאה נכונה", "הפסקה ראשונה", "הפסקה שנייה",
+    ];
+
     // ── Config ────────────────────────────────────────────────────────────────
 
     private string[] GetConfigUrls()
@@ -286,10 +294,13 @@ public class PlaywrightWinnerScraper(
         var odds      = new List<decimal>();
         var textCells = new List<string>();
         var timeCell  = (string?)null;
+        string? detectedBetType  = null;
+        string? detectedHandicap = null;
 
         foreach (var raw in cells)
         {
-            var cell = raw.Trim();
+            // Strip invisible Unicode directional/format marks that prefix RTL cells
+            var cell = StripInvisibleChars(raw.Trim());
             if (string.IsNullOrWhiteSpace(cell)) continue;
 
             // Pure integer → match/round number, skip
@@ -328,12 +339,19 @@ public class PlaywrightWinnerScraper(
             // Must contain at least one letter
             if (!HasLetterChar(cell)) continue;
 
-            // "HomeTeam - AwayTeam" in one cell → split
+            // "HomeTeam - AwayTeam" in one cell → split, stripping any leading bet-type prefix
             if (cell.Contains(" - "))
             {
                 var sep   = cell.IndexOf(" - ", StringComparison.Ordinal);
-                var part1 = CleanTeamName(cell[..sep].Trim());
+                var raw1  = cell[..sep].Trim();
                 var part2 = CleanTeamName(cell[(sep + 3)..].Trim());
+
+                // Extract bet type prefix from the home-team segment if present
+                var (part1, betType, handicap) = StripBetTypePrefix(raw1);
+                part1 = CleanTeamName(part1);
+                if (betType is not null) detectedBetType  = betType;
+                if (handicap is not null) detectedHandicap = handicap;
+
                 if (part1.Length >= 2) textCells.Add(part1);
                 if (part2.Length >= 2) textCells.Add(part2);
                 continue;
@@ -359,7 +377,8 @@ public class PlaywrightWinnerScraper(
         logger.LogDebug("[Cell] #{Index} {Home} v {Away} {O1}/{OX}/{O2} @ {At:HH:mm}",
             index, homeTeam, awayTeam, odds[0], odds[1], odds[2], scheduledAt);
 
-        return Build(index, homeTeam, awayTeam, league, scheduledAt, odds[0], odds[1], odds[2], isLive);
+        return Build(index, homeTeam, awayTeam, league, scheduledAt,
+            odds[0], odds[1], odds[2], isLive, detectedBetType, detectedHandicap);
     }
 
     // ── Text-based parser (fallback for div/span layouts) ─────────────────────
@@ -429,14 +448,16 @@ public class PlaywrightWinnerScraper(
         logger.LogDebug("[Text] #{Index} {Home} v {Away} {O1}/{OX}/{O2} @ {At:HH:mm}",
             index, homeTeam, awayTeam, odds[0], odds[1], odds[2], scheduledAt);
 
-        return Build(index, homeTeam, awayTeam, league, scheduledAt, odds[0], odds[1], odds[2], isLive);
+        return Build(index, homeTeam, awayTeam, league, scheduledAt,
+            odds[0], odds[1], odds[2], isLive);
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private static WinnerMatchDto Build(
         int index, string home, string away, string league,
-        DateTime scheduledAt, decimal o1, decimal oX, decimal o2, bool isLive)
+        DateTime scheduledAt, decimal o1, decimal oX, decimal o2, bool isLive,
+        string? betType = null, string? handicap = null)
         => new(
             Guid.NewGuid(),
             $"scraped-{index:000}",
@@ -444,7 +465,41 @@ public class PlaywrightWinnerScraper(
             new OddsDto(o1, oX, o2),
             isLive ? "live" : "upcoming",
             isLive,
-            DateTime.UtcNow);
+            DateTime.UtcNow,
+            betType,
+            handicap);
+
+    /// <summary>
+    /// Strips invisible Unicode directional and format characters that prefix RTL site content.
+    /// These prevent regex like ^\.\d+ from matching cells like U+200F + ".13 (7)".
+    /// </summary>
+    private static string StripInvisibleChars(string s)
+        => Regex.Replace(s, @"[​-‏‪-‮﻿­]", "").Trim();
+
+    /// <summary>
+    /// If the string starts with a known bet-type prefix (e.g. "סך הכל קרנות (9-11) TeamA"),
+    /// returns (teamPart, betType, handicap). Otherwise returns (original, null, null).
+    /// </summary>
+    private static (string Team, string? BetType, string? Handicap) StripBetTypePrefix(string s)
+    {
+        foreach (var prefix in BetTypePrefixes)
+        {
+            if (!s.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) continue;
+            var rest = s[prefix.Length..].Trim();
+
+            // Try to extract handicap like "(9-11)" or "(+1.5)"
+            var handicapMatch = Regex.Match(rest, @"^\(([^)]+)\)\s*");
+            string? handicap = null;
+            if (handicapMatch.Success)
+            {
+                handicap = handicapMatch.Groups[1].Value;
+                rest     = rest[handicapMatch.Length..].Trim();
+            }
+
+            return (rest.Length >= 2 ? rest : s, prefix, handicap);
+        }
+        return (s, null, null);
+    }
 
     private static bool IsTimeToken(string s)
         => s.Length is >= 4 and <= 5
