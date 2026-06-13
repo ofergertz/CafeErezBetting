@@ -4,16 +4,34 @@ using CafeErezBetting.Core.Interfaces.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Configuration;
 
 namespace CafeErezBetting.API.Controllers;
 
 [ApiController]
 [Route("api/winner")]
-public class WinnerController(IWinnerSyncService syncService, IDistributedCache cache) : ControllerBase
+public class WinnerController(
+    IWinnerSyncService syncService,
+    IDistributedCache cache,
+    IConfiguration config
+) : ControllerBase
 {
-    [HttpGet("matches")]
-    public async Task<IActionResult> GetMatches(CancellationToken ct)
+    [HttpGet("sources")]
+    public IActionResult GetSources()
     {
+        var urls = config.GetSection("Scrapers:Winner:Urls").Get<string[]>() ?? [];
+        var sources = urls.Select((url, i) => new { index = i, name = $"מקור {i + 1}", url }).ToArray();
+        return Ok(sources);
+    }
+
+    [HttpGet("matches")]
+    public async Task<IActionResult> GetMatches([FromQuery] int? source, CancellationToken ct)
+    {
+        if (source.HasValue)
+        {
+            var scraped = await syncService.ScrapeFromSourceAsync(source.Value, ct);
+            return Ok(scraped);
+        }
         var matches = await syncService.GetMatchesAsync(ct);
         return Ok(matches);
     }
