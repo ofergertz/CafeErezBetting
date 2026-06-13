@@ -9,8 +9,10 @@ namespace CafeErezBetting.Infrastructure.Services.External;
 
 /// <summary>
 /// Scrapes live winner odds from telesport.co.il or livegames.co.il using Playwright.
+/// Both sites are JavaScript-rendered SPAs — a real browser is required to extract odds data.
+/// Requires Playwright browser binaries: run `playwright install chromium` on the host or use the Docker image.
 /// Tries URLs in order; on 0 results falls back to the next URL automatically.
-/// Configurable via appsettings WinnerScraper section.
+/// Configurable via appsettings Scrapers:Winner section.
 /// </summary>
 public class PlaywrightWinnerScraper(
     IConfiguration config,
@@ -50,15 +52,23 @@ public class PlaywrightWinnerScraper(
         "1X2",
     };
 
+    // ── Config ────────────────────────────────────────────────────────────────
+
+    private string[] GetConfigUrls()
+    {
+        var urls = config.GetSection("Scrapers:Winner:Urls").Get<string[]>();
+        return urls?.Length > 0 ? urls : DefaultUrls;
+    }
+
     // ── Public entry point ────────────────────────────────────────────────────
 
     public async Task<List<WinnerMatchDto>> ScrapeAsync(CancellationToken ct = default)
     {
-        var configUrl    = config["WinnerScraper:Url"];
-        var urls         = configUrl is not null ? [configUrl] : DefaultUrls;
+        var urls         = GetConfigUrls();
         var chromiumPath = Environment.GetEnvironmentVariable("PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH");
 
-        logger.LogInformation("Playwright scraper starting (chromium={Path})", chromiumPath ?? "bundled");
+        logger.LogInformation("Playwright scraper starting — {Count} URL(s) configured (chromium={Path})",
+            urls.Length, chromiumPath ?? "bundled");
 
         using var playwright = await Playwright.CreateAsync();
         await using var browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
@@ -166,7 +176,7 @@ public class PlaywrightWinnerScraper(
     {
         var results     = new List<WinnerMatchDto>();
         var now         = DateTime.UtcNow;
-        var rowSelector = config["WinnerScraper:RowSelector"] ?? "tr";
+        var rowSelector = "tr";
 
         IReadOnlyList<IElementHandle> rows;
 

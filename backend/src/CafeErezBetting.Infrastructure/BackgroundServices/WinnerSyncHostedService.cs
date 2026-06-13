@@ -1,4 +1,5 @@
 using CafeErezBetting.Core.Interfaces.Services;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -6,18 +7,20 @@ using Microsoft.Extensions.Logging;
 namespace CafeErezBetting.Infrastructure.BackgroundServices;
 
 /// <summary>
-/// Runs Winner sync every 60 seconds with automatic retry on failure.
+/// Runs Winner sync on a configurable interval (Scrapers:Winner:IntervalSeconds, default 60s) with automatic retry on failure.
 /// </summary>
 public class WinnerSyncHostedService(
     IServiceScopeFactory scopeFactory,
+    IConfiguration config,
     ILogger<WinnerSyncHostedService> logger
 ) : BackgroundService
 {
-    private static readonly TimeSpan Interval = TimeSpan.FromSeconds(60);
-
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        logger.LogInformation("WinnerSyncHostedService started");
+        var intervalSecs = config.GetValue<int>("Scrapers:Winner:IntervalSeconds", 60);
+        var Interval = TimeSpan.FromSeconds(intervalSecs);
+
+        logger.LogInformation("WinnerSyncHostedService started (interval={Secs}s)", intervalSecs);
 
         // Initial sync on startup
         await RunSyncAsync(stoppingToken);
