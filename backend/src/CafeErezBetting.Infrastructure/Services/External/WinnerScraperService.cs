@@ -31,21 +31,30 @@ public class WinnerScraperService(
     public async Task<List<WinnerMatchDto>> GetMatchesAsync(CancellationToken ct = default)
     {
         // 1. Try Redis cache first
-        var cached = await cache.GetStringAsync(CacheKey, ct);
-        if (cached is not null)
+        try
         {
-            try
+            var cached = await cache.GetStringAsync(CacheKey, ct);
+            if (cached is not null)
             {
-                return JsonSerializer.Deserialize<List<WinnerMatchDto>>(cached) ?? [];
+                try { return JsonSerializer.Deserialize<List<WinnerMatchDto>>(cached) ?? []; }
+                catch { /* corrupted cache — fall through */ }
             }
-            catch
-            {
-                // corrupted cache — fall through
-            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Redis unavailable — falling back to DB");
         }
 
         // 2. Fall back to DB
-        return await GetFromDbAsync(ct);
+        try
+        {
+            return await GetFromDbAsync(ct);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "DB unavailable — returning mock data");
+            return GetMockData();
+        }
     }
 
     public async Task<SyncStatusDto> SyncNowAsync(CancellationToken ct = default)
@@ -58,7 +67,9 @@ public class WinnerScraperService(
 
             if (matches.Count > 0)
             {
-                await PersistMatchesAsync(matches, ct);
+                try { await PersistMatchesAsync(matches, ct); }
+                catch (Exception ex) { logger.LogWarning(ex, "DB persist failed — cache will still be updated"); }
+
                 await CacheMatchesAsync(matches, ct);
             }
 
