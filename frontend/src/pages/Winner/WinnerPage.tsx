@@ -297,7 +297,12 @@ export default function WinnerPage() {
               <section key={league}>
                 {/* League header — dark navy bar, like the betting site */}
                 <div className="flex items-center gap-2 bg-slate-800 text-white px-3 py-2.5 rounded-t-lg border-b-2 border-slate-900" dir="rtl">
-                  <span className="text-base leading-none flex-shrink-0">{leagueFlag(league)}</span>
+                  {(() => {
+                    const imgUrl = leagueMap[league][0]?.leagueImageUrl
+                    return imgUrl
+                      ? <img src={imgUrl} alt={league} className="w-5 h-5 object-contain flex-shrink-0" />
+                      : <span className="text-base leading-none flex-shrink-0">{leagueFlag(league)}</span>
+                  })()}
                   <h3 className="text-sm font-bold tracking-wide truncate flex-1">{league}</h3>
                   <span className="text-xs text-slate-300 bg-slate-700 rounded px-1.5 py-0.5 flex-shrink-0">{leagueMap[league].length}</span>
                 </div>
