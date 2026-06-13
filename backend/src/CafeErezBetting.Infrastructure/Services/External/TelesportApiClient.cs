@@ -35,40 +35,22 @@ public class TelesportApiClient(
 
     public async Task<List<WinnerMatchDto>> FetchWinnerMatchesAsync(CancellationToken ct = default)
     {
-        var apiKey = config["Scrapers:Winner:TelesportApiKey"] ?? "a33db2c2";
-        var http   = httpFactory.CreateClient("telesport");
-        var baseUrl = "https://www.telesport.co.il/ajaxactions/winnerzonepage.ashx";
-
-        // 1. Try without DateNow — returns the full current betting coupon (all days)
-        var urlFull = $"{baseUrl}?c={apiKey}&winnerPage=updateWinnerTablesByDate&program=1&allGames=true";
-        try
-        {
-            var matches = await FetchUrlAsync(http, urlFull, ct);
-            if (matches.Count > 0)
-            {
-                logger.LogInformation("TelesportAPI: {Count} matches (full coupon)", matches.Count);
-                return matches;
-            }
-            logger.LogWarning("TelesportAPI: full-coupon returned 0 — trying with today's date");
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "TelesportAPI: full-coupon request failed — trying with today's date");
-        }
-
-        // 2. Fallback: today's date
+        var apiKey  = config["Scrapers:Winner:TelesportApiKey"] ?? "a33db2c2";
         var date    = DateTime.Today.ToString("yyyy-MM-ddT00:00:00");
-        var urlDate = $"{baseUrl}?c={apiKey}&DateNow={Uri.EscapeDataString(date)}" +
+        var url     = $"https://www.telesport.co.il/ajaxactions/winnerzonepage.ashx" +
+                      $"?c={apiKey}&DateNow={Uri.EscapeDataString(date)}" +
                       $"&winnerPage=updateWinnerTablesByDate&program=1&allGames=true";
+
+        var http = httpFactory.CreateClient("telesport");
         try
         {
-            var matches = await FetchUrlAsync(http, urlDate, ct);
-            logger.LogInformation("TelesportAPI: {Count} matches (today)", matches.Count);
+            var matches = await FetchUrlAsync(http, url, ct);
+            logger.LogInformation("TelesportAPI: {Count} matches", matches.Count);
             return matches;
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "TelesportAPI: both requests failed");
+            logger.LogError(ex, "TelesportAPI: request failed");
             return [];
         }
     }
