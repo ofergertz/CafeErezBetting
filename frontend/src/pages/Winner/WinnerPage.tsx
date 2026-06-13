@@ -55,18 +55,20 @@ export default function WinnerPage() {
   const betCount  = useBetSlipStore((s) => s.items.length)
   const isAdmin   = useAuthStore((s) => s.isAdmin())
 
-  const { data: matches = [], isLoading, isError, refetch } = useQuery<WinnerMatch[]>({
+  const { data: matches = [], isPending, isError, failureCount, refetch } = useQuery<WinnerMatch[]>({
     queryKey: ['winner-matches'],
     queryFn: () => api.get<WinnerMatch[]>('/api/winner/matches'),
     refetchInterval: 60_000,
-    retry: 1,
+    retry: 8,
+    retryDelay: (attempt) => Math.min(3_000 * 2 ** attempt, 30_000),
   })
 
   const { data: syncStatus } = useQuery<SyncStatus>({
     queryKey: ['winner-sync-status'],
     queryFn: () => api.get<SyncStatus>('/api/winner/sync-status'),
     refetchInterval: 60_000,
-    retry: false,
+    retry: 3,
+    retryDelay: (attempt) => Math.min(3_000 * 2 ** attempt, 15_000),
   })
 
   const syncMutation = useMutation({
@@ -83,18 +85,23 @@ export default function WinnerPage() {
 
   useMatchesHub(handleMatchesUpdated)
 
-  if (isLoading) return (
+  if (isPending) return (
     <div className="flex items-center justify-center h-64 text-gray-400">
       <div className="text-center">
         <div className="w-8 h-8 border-2 border-[--color-accent] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-        <p className="text-sm">{t('common.loading')}</p>
+        <p className="text-sm">
+          {failureCount > 0 ? 'מתחבר לשרת...' : t('common.loading')}
+        </p>
+        {failureCount > 2 && (
+          <p className="text-xs text-gray-400 mt-1">השרת עדיין מתחיל, אנא המתן...</p>
+        )}
       </div>
     </div>
   )
 
   if (isError) return (
     <div className="card">
-      <ErrorState message={t('common.error')} onRetry={() => refetch()} />
+      <ErrorState message="לא ניתן להתחבר לשרת" onRetry={() => refetch()} />
     </div>
   )
 
