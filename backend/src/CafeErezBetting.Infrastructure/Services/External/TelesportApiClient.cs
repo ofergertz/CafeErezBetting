@@ -35,36 +35,52 @@ public class TelesportApiClient(
 
     public async Task<List<WinnerMatchDto>> FetchWinnerMatchesAsync(CancellationToken ct = default)
     {
-        var apiKey  = config["Scrapers:Winner:TelesportApiKey"] ?? "a33db2c2";
-        var date    = DateTime.Today.ToString("yyyy-MM-ddT00:00:00");
-        var url     = $"https://www.telesport.co.il/ajaxactions/winnerzonepage.ashx" +
-                      $"?c={apiKey}&DateNow={Uri.EscapeDataString(date)}" +
-                      $"&winnerPage=updateWinnerTablesByDate&program=1&allGames=true";
+        var apiKey = config["Scrapers:Winner:TelesportApiKey"] ?? "a33db2c2";
+        var http   = httpFactory.CreateClient("telesport");
+        var baseUrl = "https://www.telesport.co.il/ajaxactions/winnerzonepage.ashx";
 
-        logger.LogInformation("TelesportAPI: fetching {Url}", url);
-
-        var http = httpFactory.CreateClient("telesport");
+        // 1. Try without DateNow — returns the full current betting coupon (all days)
+        var urlFull = $"{baseUrl}?c={apiKey}&winnerPage=updateWinnerTablesByDate&program=1&allGames=true";
         try
         {
-            var json = await http.GetStringAsync(url, ct);
-            var records = JsonSerializer.Deserialize<List<TelesportWinnerRecord>>(json, JsonOptions);
-
-            if (records is null || records.Count == 0)
+            var matches = await FetchUrlAsync(http, urlFull, ct);
+            if (matches.Count > 0)
             {
-                logger.LogWarning("TelesportAPI: empty or null response");
-                return [];
+                logger.LogInformation("TelesportAPI: {Count} matches (full coupon)", matches.Count);
+                return matches;
             }
-
-            logger.LogInformation("TelesportAPI: received {Count} records", records.Count);
-            var mapped = MapToDto(records);
-            logger.LogInformation("TelesportAPI: mapped to {Count} matches", mapped.Count);
-            return mapped;
+            logger.LogWarning("TelesportAPI: full-coupon returned 0 — trying with today's date");
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "TelesportAPI: request failed");
+            logger.LogWarning(ex, "TelesportAPI: full-coupon request failed — trying with today's date");
+        }
+
+        // 2. Fallback: today's date
+        var date    = DateTime.Today.ToString("yyyy-MM-ddT00:00:00");
+        var urlDate = $"{baseUrl}?c={apiKey}&DateNow={Uri.EscapeDataString(date)}" +
+                      $"&winnerPage=updateWinnerTablesByDate&program=1&allGames=true";
+        try
+        {
+            var matches = await FetchUrlAsync(http, urlDate, ct);
+            logger.LogInformation("TelesportAPI: {Count} matches (today)", matches.Count);
+            return matches;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "TelesportAPI: both requests failed");
             return [];
         }
+    }
+
+    private async Task<List<WinnerMatchDto>> FetchUrlAsync(HttpClient http, string url, CancellationToken ct)
+    {
+        logger.LogInformation("TelesportAPI: fetching {Url}", url);
+        var json    = await http.GetStringAsync(url, ct);
+        var records = JsonSerializer.Deserialize<List<TelesportWinnerRecord>>(json, JsonOptions);
+        if (records is null || records.Count == 0) return [];
+        logger.LogInformation("TelesportAPI: received {Count} records", records.Count);
+        return MapToDto(records);
     }
 
     // ── Mapping ───────────────────────────────────────────────────────────────

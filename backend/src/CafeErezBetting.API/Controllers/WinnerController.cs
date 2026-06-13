@@ -30,7 +30,10 @@ public class WinnerController(
         if (source.HasValue)
         {
             var scraped = await syncService.ScrapeFromSourceAsync(source.Value, ct);
-            return Ok(scraped);
+            if (scraped.Count > 0) return Ok(scraped);
+            // Source returned empty — fall back to cache/DB so the UI never shows a blank screen
+            var cached = await syncService.GetMatchesAsync(ct);
+            return Ok(cached);
         }
         var matches = await syncService.GetMatchesAsync(ct);
         return Ok(matches);
