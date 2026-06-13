@@ -174,7 +174,7 @@ public class WinnerScraperService(
                     HomeTeam    = dto.HomeTeam,
                     AwayTeam    = dto.AwayTeam,
                     League      = dto.League,
-                    ScheduledAt = dto.ScheduledAt,
+                    ScheduledAt = ToUtc(dto.ScheduledAt),
                     Odds1       = dto.Odds.Home,
                     OddsX       = dto.Odds.Draw ?? 0,
                     Odds2       = dto.Odds.Away,
@@ -212,4 +212,13 @@ public class WinnerScraperService(
             m.ScheduledAt, new(m.Odds1, m.OddsX == 0 ? null : m.OddsX, m.Odds2),
             m.Status.ToString().ToLower(), m.IsLive, m.LastUpdated,
             BetType: null, Handicap: null, SubMarket: null);
+
+    // JSON deserialization produces Kind=Unspecified for dates without tz offset.
+    // PostgreSQL timestamptz only accepts Utc.
+    private static DateTime ToUtc(DateTime dt) => dt.Kind switch
+    {
+        DateTimeKind.Utc       => dt,
+        DateTimeKind.Local     => dt.ToUniversalTime(),
+        _                      => DateTime.SpecifyKind(dt, DateTimeKind.Utc),
+    };
 }
