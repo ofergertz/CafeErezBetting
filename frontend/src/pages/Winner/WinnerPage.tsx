@@ -128,7 +128,7 @@ export default function WinnerPage() {
   const queryClient = useQueryClient()
   const [slipOpen, setSlipOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<FilterTab>('all')
-  const [selectedSource, setSelectedSource] = useState<number | null>(null)
+  const [selectedSource, setSelectedSource] = useState<number>(0)
   const betCount = useBetSlipStore((s) => s.items.length)
 
   const { data: sources = [] } = useQuery<Source[]>({
@@ -139,19 +139,15 @@ export default function WinnerPage() {
 
   const { data: matches = [], isPending, isError, isFetching, failureCount, refetch } = useQuery<WinnerMatch[]>({
     queryKey: ['winner-matches', selectedSource],
-    queryFn: () => api.get<WinnerMatch[]>(
-      selectedSource !== null
-        ? `/api/winner/matches?source=${selectedSource}`
-        : '/api/winner/matches'
-    ),
-    refetchInterval: selectedSource === null ? 60_000 : false,
+    queryFn: () => api.get<WinnerMatch[]>(`/api/winner/matches?source=${selectedSource}`),
+    refetchInterval: 60_000,
     retry: 8,
     retryDelay: (attempt) => Math.min(3_000 * 2 ** attempt, 30_000),
   })
 
   const handleMatchesUpdated = useCallback((updated: unknown) => {
-    if (selectedSource === null)
-      queryClient.setQueryData(['winner-matches', null], updated)
+    if (selectedSource === 0)
+      queryClient.setQueryData(['winner-matches', 0], updated)
   }, [queryClient, selectedSource])
 
   useMatchesHub(handleMatchesUpdated)
@@ -160,12 +156,8 @@ export default function WinnerPage() {
     <div className="flex items-center justify-center h-64 text-gray-400">
       <div className="text-center">
         <div className="w-8 h-8 border-2 border-[--color-accent] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-        <p className="text-sm">
-          {selectedSource !== null
-            ? `טוען ממקור ${selectedSource + 1}...`
-            : failureCount > 0 ? 'מתחבר לשרת...' : t('common.loading')}
-        </p>
-        {failureCount > 2 && selectedSource === null && (
+        <p className="text-sm">{`טוען ממקור ${selectedSource + 1}...`}</p>
+        {failureCount > 2 && (
           <p className="text-xs text-gray-400 mt-1">השרת עדיין מתחיל, אנא המתן...</p>
         )}
       </div>
@@ -217,11 +209,10 @@ export default function WinnerPage() {
             <span className="text-xs text-gray-500 flex-shrink-0">מקור נתונים:</span>
             <div className="relative">
               <select
-                value={selectedSource ?? ''}
-                onChange={e => setSelectedSource(e.target.value === '' ? null : Number(e.target.value))}
+                value={selectedSource}
+                onChange={e => setSelectedSource(Number(e.target.value))}
                 className="appearance-none text-sm border border-[--color-border] rounded-lg ps-3 pe-8 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-[--color-accent] cursor-pointer"
               >
-                <option value="">נתונים מאוחסנים</option>
                 {sources.map(s => (
                   <option key={s.index} value={s.index}>{s.name}</option>
                 ))}
