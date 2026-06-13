@@ -19,14 +19,16 @@ public record WinnerMatchDto(
     string? FormNumber = null,
     string? Score = null,
     string? Minute = null,
-    string? BetCode = null
+    string? BetCode = null,
+    string? LeagueImageUrl = null
 );
 
 // JSON keys must match frontend: '1', 'X', '2'
+// Draw is nullable — 1/2 markets (Asian handicap, over/under) have no X option.
 public record OddsDto(
-    [property: JsonPropertyName("1")] decimal Home,
-    [property: JsonPropertyName("X")] decimal Draw,
-    [property: JsonPropertyName("2")] decimal Away
+    [property: JsonPropertyName("1")] decimal  Home,
+    [property: JsonPropertyName("X")] decimal? Draw,
+    [property: JsonPropertyName("2")] decimal  Away
 );
 
 public record BetSlipItemDto(

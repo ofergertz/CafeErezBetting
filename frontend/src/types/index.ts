@@ -67,7 +67,7 @@ export interface WinnerMatch {
   awayTeam: string
   league: string
   scheduledAt: string
-  odds: { '1': number; X: number; '2': number }
+  odds: { '1': number; X: number | null; '2': number }
   status: 'upcoming' | 'live' | 'finished' | 'suspended'
   isLive: boolean
   betType?: string | null
@@ -77,6 +77,7 @@ export interface WinnerMatch {
   score?: string | null
   minute?: string | null
   betCode?: string | null
+  leagueImageUrl?: string | null
 }
 
 export interface BetSlipItem {

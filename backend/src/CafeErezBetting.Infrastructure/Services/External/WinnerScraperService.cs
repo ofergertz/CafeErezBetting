@@ -10,13 +10,15 @@ using Microsoft.Extensions.Logging;
 namespace CafeErezBetting.Infrastructure.Services.External;
 
 /// <summary>
-/// Syncs Winner/Toto match data from external sources (backend-only, never client).
-/// Scrapes all configured URLs in parallel on every sync cycle.
-/// Falls back to Redis cache or DB when scraping fails — never returns fake data.
+/// Syncs Winner match data from external sources (backend-only, never client).
+/// Primary source: Telesport JSON API (fast, clean structured data).
+/// Fallback: Playwright HTML scraping (slower, used when API is unreachable).
+/// Falls back to Redis cache or DB when all live sources fail.
 /// </summary>
 public class WinnerScraperService(
     AppDbContext db,
     IDistributedCache cache,
+    TelesportApiClient telesportApi,
     PlaywrightWinnerScraper playwright,
     ILogger<WinnerScraperService> logger
 ) : IWinnerSyncService
@@ -93,27 +95,47 @@ public class WinnerScraperService(
     public async Task<List<WinnerMatchDto>> ScrapeFromSourceAsync(int sourceIndex, CancellationToken ct = default)
     {
         logger.LogInformation("Direct scrape from source {Index}", sourceIndex);
-        return await playwright.ScrapeAsync(sourceIndex, ct);
+        // Index 0 = Telesport JSON API (fast), any other = Playwright HTML scraper
+        return sourceIndex == 0
+            ? await telesportApi.FetchWinnerMatchesAsync(ct)
+            : await playwright.ScrapeAsync(sourceIndex, ct);
     }
 
     private async Task<List<WinnerMatchDto>> ScrapeExternalAsync(CancellationToken ct)
     {
+        // 1. Try Telesport JSON API (fast, ~1–2 s)
+        try
+        {
+            var apiMatches = await telesportApi.FetchWinnerMatchesAsync(ct);
+            if (apiMatches.Count > 0)
+            {
+                logger.LogInformation("TelesportAPI sync succeeded: {Count} matches", apiMatches.Count);
+                return apiMatches;
+            }
+            logger.LogWarning("TelesportAPI returned 0 matches — falling back to Playwright");
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "TelesportAPI failed — falling back to Playwright");
+        }
+
+        // 2. Fallback: Playwright scraper (slower, ~30–60 s)
         try
         {
             var scraped = await playwright.ScrapeAllAsync(ct);
             if (scraped.Count > 0)
             {
-                logger.LogInformation("Scrape succeeded: {Count} real matches", scraped.Count);
+                logger.LogInformation("Playwright fallback succeeded: {Count} matches", scraped.Count);
                 return scraped;
             }
-            logger.LogWarning("Scrape returned 0 matches — check selectors or site structure");
-            return [];
+            logger.LogWarning("Playwright returned 0 matches");
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Playwright scrape failed (Chromium may not be installed or sites are unreachable)");
-            return [];
+            logger.LogError(ex, "Playwright scrape also failed");
         }
+
+        return [];
     }
 
     private async Task<List<WinnerMatchDto>> GetFromDbAsync(CancellationToken ct)
@@ -154,7 +176,7 @@ public class WinnerScraperService(
                     League      = dto.League,
                     ScheduledAt = dto.ScheduledAt,
                     Odds1       = dto.Odds.Home,
-                    OddsX       = dto.Odds.Draw,
+                    OddsX       = dto.Odds.Draw ?? 0,
                     Odds2       = dto.Odds.Away,
                     Status      = Enum.Parse<MatchStatus>(dto.Status, ignoreCase: true),
                     IsLive      = dto.IsLive,
@@ -164,7 +186,7 @@ public class WinnerScraperService(
             else
             {
                 existing.Odds1       = dto.Odds.Home;
-                existing.OddsX       = dto.Odds.Draw;
+                existing.OddsX       = dto.Odds.Draw ?? 0;
                 existing.Odds2       = dto.Odds.Away;
                 existing.Status      = Enum.Parse<MatchStatus>(dto.Status, ignoreCase: true);
                 existing.IsLive      = dto.IsLive;
@@ -187,7 +209,7 @@ public class WinnerScraperService(
 
     private static WinnerMatchDto ToDto(WinnerMatch m) =>
         new(m.Id, m.ExternalId, m.HomeTeam, m.AwayTeam, m.League,
-            m.ScheduledAt, new(m.Odds1, m.OddsX, m.Odds2),
+            m.ScheduledAt, new(m.Odds1, m.OddsX == 0 ? null : m.OddsX, m.Odds2),
             m.Status.ToString().ToLower(), m.IsLive, m.LastUpdated,
             BetType: null, Handicap: null, SubMarket: null);
 }
