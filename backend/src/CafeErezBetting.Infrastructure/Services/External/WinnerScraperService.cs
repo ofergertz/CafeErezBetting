@@ -5,27 +5,24 @@ using CafeErezBetting.Core.Interfaces.Services;
 using CafeErezBetting.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace CafeErezBetting.Infrastructure.Services.External;
 
 /// <summary>
 /// Syncs Winner/Toto match data from external sources (backend-only, never client).
-/// Falls back to Redis cache on external failure.
+/// Scrapes all configured URLs in parallel on every sync cycle.
+/// Falls back to Redis cache or DB when scraping fails — never returns fake data.
 /// </summary>
 public class WinnerScraperService(
     AppDbContext db,
     IDistributedCache cache,
-    IConfiguration config,
-    IHostEnvironment env,
     PlaywrightWinnerScraper playwright,
     ILogger<WinnerScraperService> logger
 ) : IWinnerSyncService
 {
-    private const string CacheKey        = "winner:matches";
-    private const string LastSyncKey     = "winner:last_sync";
+    private const string CacheKey    = "winner:matches";
+    private const string LastSyncKey = "winner:last_sync";
     private static readonly TimeSpan CacheTtl = TimeSpan.FromSeconds(90);
 
     public async Task<List<WinnerMatchDto>> GetMatchesAsync(CancellationToken ct = default)
@@ -52,8 +49,8 @@ public class WinnerScraperService(
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "DB unavailable — returning mock data");
-            return GetMockData();
+            logger.LogWarning(ex, "DB unavailable — returning empty list");
+            return [];
         }
     }
 
@@ -63,20 +60,17 @@ public class WinnerScraperService(
         {
             logger.LogInformation("Winner sync started");
 
-            var (matches, isMock) = await ScrapeExternalAsync(ct);
+            var matches = await ScrapeExternalAsync(ct);
 
             if (matches.Count > 0)
             {
-                if (!isMock)
-                {
-                    try { await PersistMatchesAsync(matches, ct); }
-                    catch (Exception ex) { logger.LogWarning(ex, "DB persist failed — cache will still be updated"); }
-                }
+                try { await PersistMatchesAsync(matches, ct); }
+                catch (Exception ex) { logger.LogWarning(ex, "DB persist failed — cache will still be updated"); }
 
                 await CacheMatchesAsync(matches, ct);
             }
 
-            var dto = new SyncStatusDto(true, DateTime.UtcNow, null, isMock);
+            var dto = new SyncStatusDto(true, DateTime.UtcNow, null, false);
             await cache.SetStringAsync(
                 LastSyncKey,
                 JsonSerializer.Serialize(dto),
@@ -84,13 +78,13 @@ public class WinnerScraperService(
                 ct
             );
 
-            logger.LogInformation("Winner sync completed: {Count} matches (mock={IsMock})", matches.Count, isMock);
+            logger.LogInformation("Winner sync completed: {Count} matches", matches.Count);
             return dto;
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Winner sync failed, using cached data");
-            return new SyncStatusDto(false, DateTime.UtcNow, ex.Message, true);
+            logger.LogError(ex, "Winner sync failed");
+            return new SyncStatusDto(false, DateTime.UtcNow, ex.Message, false);
         }
     }
 
@@ -100,6 +94,26 @@ public class WinnerScraperService(
     {
         logger.LogInformation("Direct scrape from source {Index}", sourceIndex);
         return await playwright.ScrapeAsync(sourceIndex, ct);
+    }
+
+    private async Task<List<WinnerMatchDto>> ScrapeExternalAsync(CancellationToken ct)
+    {
+        try
+        {
+            var scraped = await playwright.ScrapeAllAsync(ct);
+            if (scraped.Count > 0)
+            {
+                logger.LogInformation("Scrape succeeded: {Count} real matches", scraped.Count);
+                return scraped;
+            }
+            logger.LogWarning("Scrape returned 0 matches — check selectors or site structure");
+            return [];
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Playwright scrape failed (Chromium may not be installed or sites are unreachable)");
+            return [];
+        }
     }
 
     private async Task<List<WinnerMatchDto>> GetFromDbAsync(CancellationToken ct)
@@ -113,57 +127,8 @@ public class WinnerScraperService(
         return matches.Select(ToDto).ToList();
     }
 
-    /// <summary>
-    /// Scrape from external source.
-    /// Returns (matches, isMock) — callers can surface mock status to the UI.
-    /// Development: returns mock data unless WinnerScraper:UseRealData=true.
-    /// Production: uses Playwright to scrape the configured URL; falls back to mock on failure.
-    /// </summary>
-    private async Task<(List<WinnerMatchDto> Matches, bool IsMock)> ScrapeExternalAsync(CancellationToken ct)
-    {
-        // Use mock data in Development UNLESS Scrapers:Winner:UseRealData=true (for local debug)
-        var useRealData = config.GetValue<bool>("Scrapers:Winner:UseRealData", defaultValue: false);
-        if (env.IsDevelopment() && !useRealData)
-        {
-            await Task.Delay(50, ct);
-            logger.LogDebug("Development mode: returning mock data (set Scrapers:Winner:UseRealData=true to scrape real data)");
-            return (GetMockData(), true);
-        }
-
-        try
-        {
-            var scraped = await playwright.ScrapeAsync(0, ct);
-            if (scraped.Count > 0)
-            {
-                logger.LogInformation("Playwright scrape succeeded: {Count} real matches", scraped.Count);
-                return (scraped, false);
-            }
-            logger.LogWarning("Playwright returned 0 matches — check selectors or site structure. Falling back to mock data");
-            return (GetMockData(), true);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Playwright scrape failed (Chromium may not be installed or site is unreachable) — falling back to mock data");
-            return (GetMockData(), true);
-        }
-    }
-
-    private static List<WinnerMatchDto> GetMockData()
-    {
-        var now = DateTime.UtcNow;
-        return
-        [
-            new(Guid.NewGuid(), "ext-001", "מכבי תל אביב",    "הפועל ב\"ש",    "ליגת העל",  now.AddHours(2),  new(2.10m, 3.20m, 3.50m), "upcoming", false, now),
-            new(Guid.NewGuid(), "ext-002", "ביתר ירושלים",    "מכבי חיפה",     "ליגת העל",  now.AddHours(4),  new(2.80m, 3.10m, 2.60m), "upcoming", false, now),
-            new(Guid.NewGuid(), "ext-003", "Real Madrid",      "Barcelona",      "La Liga",   now.AddMinutes(5),new(2.50m, 3.40m, 2.90m), "live",     true,  now, Score: "1-0", Minute: "43"),
-            new(Guid.NewGuid(), "ext-004", "Manchester City",  "Arsenal",        "Premier League", now.AddHours(6), new(1.90m, 3.80m, 4.00m), "upcoming", false, now),
-            new(Guid.NewGuid(), "ext-005", "Bayern Munich",    "Borussia Dortmund", "Bundesliga", now.AddHours(3), new(1.70m, 3.60m, 4.50m), "upcoming", false, now),
-        ];
-    }
-
     private async Task PersistMatchesAsync(List<WinnerMatchDto> matches, CancellationToken ct)
     {
-        // Remove stale records not in current scrape (cleans up mock data + expired matches)
         var currentIds = matches.Select(m => m.ExternalId).ToHashSet();
         var stale = await db.WinnerMatches
             .Where(m => !currentIds.Contains(m.ExternalId))
@@ -171,7 +136,7 @@ public class WinnerScraperService(
         if (stale.Count > 0)
         {
             db.WinnerMatches.RemoveRange(stale);
-            logger.LogInformation("Removed {Count} stale/mock matches from DB", stale.Count);
+            logger.LogInformation("Removed {Count} stale matches from DB", stale.Count);
         }
 
         foreach (var dto in matches)
