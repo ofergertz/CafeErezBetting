@@ -30,8 +30,8 @@ function randomPick(): Picks {
 export default function ChancePage() {
   const { t } = useTranslation()
   const [picks,      setPicks]      = useState<Picks>({})
-  const [stake,      setStake]      = useState<number>(10)
-  const [draws,      setDraws]      = useState<number>(2)
+  const [stake,      setStake]      = useState<number | null>(null)
+  const [draws,      setDraws]      = useState<number | null>(null)
   const [validErr,   setValidErr]   = useState<string | null>(null)
   const [showSuccess,setShowSuccess]= useState(false)
   const successTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -64,6 +64,10 @@ export default function ChancePage() {
   }
 
   const handleSubmit = () => {
+    if (stake === null) {
+      setValidErr('יש לבחור סכום השתתפות')
+      return
+    }
     const missing = SUITS.filter(s => !picks[s.key])
     if (missing.length > 0) {
       setValidErr(`יש לבחור קלף בכל שורה (חסר: ${missing.map(s => s.symbol).join(' ')})`)
@@ -72,13 +76,14 @@ export default function ChancePage() {
     const payload: ChancePayload = {
       picks: SUITS.map(s => ({ suit: s.key, card: picks[s.key]! })),
       stake,
-      draws,
+      draws: draws ?? 1,
     }
     mutation.mutate(payload)
   }
 
-  const picksCount = SUITS.filter(s => picks[s.key]).length
-  const totalCost  = stake * draws
+  const picksCount  = SUITS.filter(s => picks[s.key]).length
+  const effectiveDraws = draws ?? 1
+  const totalCost   = stake !== null ? stake * effectiveDraws : null
 
   return (
     <div className="max-w-lg mx-auto space-y-4 pb-8" dir="rtl">
@@ -101,7 +106,7 @@ export default function ChancePage() {
             <button
               key={s}
               type="button"
-              onClick={() => setStake(s)}
+              onClick={() => { setValidErr(null); setStake(prev => prev === s ? null : s) }}
               className={`
                 min-w-[48px] min-h-[44px] px-3 rounded-lg border text-sm font-semibold transition-all
                 ${stake === s
@@ -118,13 +123,16 @@ export default function ChancePage() {
 
       {/* Draws selector */}
       <div className="card p-4">
-        <p className="text-sm font-bold text-gray-700 mb-3">יש לסמן מספר הגרלות <span className="text-gray-400 font-normal">(ללא סימן הגרלה 1)</span></p>
+        <p className="text-sm font-bold text-gray-700 mb-3">
+          יש לסמן מספר הגרלות{' '}
+          <span className="text-gray-400 font-normal">(ללא סימן = הגרלה 1)</span>
+        </p>
         <div className="flex flex-wrap gap-2">
           {DRAWS_OPTIONS.map(d => (
             <button
               key={d}
               type="button"
-              onClick={() => setDraws(d)}
+              onClick={() => setDraws(prev => prev === d ? null : d)}
               className={`
                 min-w-[44px] min-h-[44px] px-3 rounded-lg border text-sm font-semibold transition-all
                 ${draws === d
@@ -195,11 +203,15 @@ export default function ChancePage() {
         </div>
         <div className="flex justify-between text-sm text-gray-500">
           <span>סכום × הגרלות</span>
-          <span className="font-semibold text-gray-800">{stake} ₪ × {draws}</span>
+          <span className="font-semibold text-gray-800">
+            {stake !== null ? `${stake} ₪` : '—'} × {effectiveDraws}
+          </span>
         </div>
         <div className="flex justify-between text-base font-bold border-t border-[--color-border] pt-2 mt-1">
           <span>סה"כ לתשלום</span>
-          <span className="text-[--color-accent]">{totalCost} ₪</span>
+          <span className="text-[--color-accent]">
+            {totalCost !== null ? `${totalCost} ₪` : '—'}
+          </span>
         </div>
         {validErr && (
           <p className="text-[--color-danger] text-sm font-semibold">⚠️ {validErr}</p>
