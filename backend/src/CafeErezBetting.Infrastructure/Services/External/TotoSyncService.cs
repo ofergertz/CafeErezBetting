@@ -3,21 +3,22 @@ using CafeErezBetting.Core.DTOs;
 using CafeErezBetting.Core.Interfaces.Services;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace CafeErezBetting.Infrastructure.Services.External;
 
 /// <summary>
-/// Syncs Toto round data from external sources (backend-only, never client).
-/// Uses Redis for caching — no DB persistence needed (rounds change weekly).
-/// Falls back to mock data on failure.
+/// Syncs Toto round data from external JSON APIs (backend-only, never client).
+/// Primary:    Telesport  (m.telesport.co.il/api/toto)
+/// Secondary:  Livegames  (m.livegames.co.il/api/toto)
+/// Tertiary:   Winner.co.il (www.winner.co.il/api/v2/publicapi/GetTotoDraws)
+/// Falls back to Redis cache or mock data when all APIs fail.
 /// </summary>
 public class TotoSyncService(
     IDistributedCache cache,
     IConfiguration config,
-    IHostEnvironment env,
-    PlaywrightTotoScraper playwright,
+    TotoTelesportApiClient telesportApi,
+    TotoWinnerApiClient winnerApi,
     ILogger<TotoSyncService> logger
 ) : ITotoSyncService
 {
@@ -25,9 +26,11 @@ public class TotoSyncService(
     private const string LastSyncKey = "toto:last_sync";
     private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(10);
 
+    private const string TelesportTotoUrl = "https://m.telesport.co.il/api/toto";
+    private const string LivegamesTotoUrl = "https://m.livegames.co.il/api/toto";
+
     public async Task<TotoRoundDto?> GetCurrentRoundAsync(CancellationToken ct = default)
     {
-        // 1. Try Redis cache first
         try
         {
             var cached = await cache.GetStringAsync(CacheKey, ct);
@@ -42,7 +45,6 @@ public class TotoSyncService(
             logger.LogWarning(ex, "Toto: Redis unavailable — falling back to mock data");
         }
 
-        // 2. Fall back to mock
         return GetMockData();
     }
 
@@ -55,9 +57,7 @@ public class TotoSyncService(
             var (round, isMock) = await ScrapeExternalAsync(ct);
 
             if (round is not null)
-            {
                 await CacheRoundAsync(round, ct);
-            }
 
             var dto = new SyncStatusDto(true, DateTime.UtcNow, null, isMock);
             await cache.SetStringAsync(
@@ -80,37 +80,64 @@ public class TotoSyncService(
 
     // ── Private helpers ────────────────────────────────────────────────────────
 
-    /// <summary>
-    /// Scrape from external source.
-    /// Development: returns mock data unless Scrapers:Toto:UseRealData=true.
-    /// Production: uses Playwright; falls back to mock on failure.
-    /// </summary>
     private async Task<(TotoRoundDto? Round, bool IsMock)> ScrapeExternalAsync(CancellationToken ct)
     {
         var useRealData = config.GetValue<bool>("Scrapers:Toto:UseRealData", defaultValue: false);
-        if (env.IsDevelopment() && !useRealData)
+        if (!useRealData)
         {
-            await Task.Delay(50, ct);
-            logger.LogDebug("Toto development mode: returning mock data (set Scrapers:Toto:UseRealData=true to scrape real data)");
+            logger.LogDebug("Toto: UseRealData=false — returning mock data");
             return (GetMockData(), true);
         }
 
+        // 1. Primary: Telesport
         try
         {
-            var scraped = await playwright.ScrapeAsync(ct);
-            if (scraped is not null && scraped.Matches.Count > 0)
+            var round = await telesportApi.FetchAsync(TelesportTotoUrl, "telesport", ct);
+            if (round is not null && round.Matches.Count > 0)
             {
-                logger.LogInformation("Playwright Toto scrape succeeded: {Count} matches", scraped.Matches.Count);
-                return (scraped, false);
+                logger.LogInformation("Toto Telesport sync succeeded: {Count} matches", round.Matches.Count);
+                return (round, false);
             }
-            logger.LogWarning("Playwright Toto returned 0 matches — falling back to mock data");
-            return (GetMockData(), true);
+            logger.LogWarning("Toto Telesport returned 0 matches — trying Livegames");
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Playwright Toto scrape failed — falling back to mock data");
-            return (GetMockData(), true);
+            logger.LogWarning(ex, "Toto Telesport failed — trying Livegames");
         }
+
+        // 2. Secondary: Livegames
+        try
+        {
+            var round = await telesportApi.FetchAsync(LivegamesTotoUrl, "livegames", ct);
+            if (round is not null && round.Matches.Count > 0)
+            {
+                logger.LogInformation("Toto Livegames sync succeeded: {Count} matches", round.Matches.Count);
+                return (round, false);
+            }
+            logger.LogWarning("Toto Livegames returned 0 matches — trying Winner.co.il");
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Toto Livegames failed — trying Winner.co.il");
+        }
+
+        // 3. Tertiary: Winner.co.il
+        try
+        {
+            var round = await winnerApi.FetchAsync(ct);
+            if (round is not null && round.Matches.Count > 0)
+            {
+                logger.LogInformation("Toto Winner.co.il sync succeeded: {Count} matches", round.Matches.Count);
+                return (round, false);
+            }
+            logger.LogWarning("Toto Winner.co.il returned 0 matches — falling back to mock");
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Toto Winner.co.il failed — falling back to mock");
+        }
+
+        return (GetMockData(), true);
     }
 
     private async Task CacheRoundAsync(TotoRoundDto round, CancellationToken ct)
