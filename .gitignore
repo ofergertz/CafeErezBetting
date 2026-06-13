@@ -50,3 +50,4 @@ coverage/
 # Cache
 .cache/
 .turbo/
+.claude/

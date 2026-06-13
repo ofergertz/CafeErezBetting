@@ -12,7 +12,9 @@ public record WinnerMatchDto(
     OddsDto Odds,
     string  Status,
     bool    IsLive,
-    DateTime LastUpdated
+    DateTime LastUpdated,
+    string? BetType = null,
+    string? Handicap = null
 );
 
 // JSON keys must match frontend: '1', 'X', '2'

@@ -70,6 +70,8 @@ export interface WinnerMatch {
   odds: { '1': number; X: number; '2': number }
   status: 'upcoming' | 'live' | 'finished' | 'suspended'
   isLive: boolean
+  betType?: string | null
+  handicap?: string | null
 }
 
 export interface BetSlipItem {

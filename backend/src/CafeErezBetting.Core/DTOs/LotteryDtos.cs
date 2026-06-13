@@ -2,9 +2,10 @@ namespace CafeErezBetting.Core.DTOs;
 
 // ─── Toto ─────────────────────────────────────────────────────────────────────
 
-public record TotoMatchDto(string Id, string HomeTeam, string AwayTeam, string League);
+public record TotoMatchDto(string Id, string HomeTeam, string AwayTeam, string League,
+    DateTime? ScheduledAt = null, string? Result = null);
 
-public record TotoRoundDto(string RoundId, int RoundNumber, List<TotoMatchDto> Matches);
+public record TotoRoundDto(string RoundId, int RoundNumber, List<TotoMatchDto> Matches, bool IsMock = false);
 
 public record TotoColumnDto(Dictionary<string, string> Picks); // matchId → "1"|"X"|"2"
 

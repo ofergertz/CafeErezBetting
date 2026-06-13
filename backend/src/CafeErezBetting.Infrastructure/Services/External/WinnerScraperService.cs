@@ -115,12 +115,12 @@ public class WinnerScraperService(
     /// </summary>
     private async Task<(List<WinnerMatchDto> Matches, bool IsMock)> ScrapeExternalAsync(CancellationToken ct)
     {
-        // Use mock data in Development UNLESS WinnerScraper:UseRealData=true (for local debug)
-        var useRealData = config.GetValue<bool>("WinnerScraper:UseRealData", defaultValue: false);
+        // Use mock data in Development UNLESS Scrapers:Winner:UseRealData=true (for local debug)
+        var useRealData = config.GetValue<bool>("Scrapers:Winner:UseRealData", defaultValue: false);
         if (env.IsDevelopment() && !useRealData)
         {
             await Task.Delay(50, ct);
-            logger.LogDebug("Development mode: returning mock data (set WinnerScraper:UseRealData=true to scrape real data)");
+            logger.LogDebug("Development mode: returning mock data (set Scrapers:Winner:UseRealData=true to scrape real data)");
             return (GetMockData(), true);
         }
 
@@ -217,5 +217,6 @@ public class WinnerScraperService(
     private static WinnerMatchDto ToDto(WinnerMatch m) =>
         new(m.Id, m.ExternalId, m.HomeTeam, m.AwayTeam, m.League,
             m.ScheduledAt, new(m.Odds1, m.OddsX, m.Odds2),
-            m.Status.ToString().ToLower(), m.IsLive, m.LastUpdated);
+            m.Status.ToString().ToLower(), m.IsLive, m.LastUpdated,
+            BetType: null, Handicap: null);
 }

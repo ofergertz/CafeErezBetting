@@ -51,15 +51,28 @@ export default function MatchCard({ match }: Props) {
   return (
     <div className={`card p-4 transition-opacity ${isLocked ? 'opacity-50' : ''}`}>
       {/* Header */}
-      <div className="flex items-center justify-between mb-3 text-xs text-gray-500">
-        <span>{match.league}</span>
-        <div className="flex items-center gap-2">
-          {match.isLive && (
-            <span className="flex items-center gap-1 text-red-600 font-bold text-xs">
-              <span className="live-dot" /> {t('winner.live')}
+      <div className="flex items-center justify-between mb-3 gap-2">
+        {/* Left: league badge + optional bet-type badge */}
+        <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+          <span className="inline-flex items-center bg-blue-50 text-blue-600 border border-blue-200 rounded-full px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap">
+            {match.league}
+          </span>
+          {match.betType && (
+            <span className="inline-flex items-center bg-green-50 text-green-700 border border-green-200 rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap">
+              {match.betType}{match.handicap ? ` (${match.handicap})` : ''}
             </span>
           )}
-          {!match.isLive && <span>{dateStr} {timeStr}</span>}
+        </div>
+
+        {/* Right: live indicator or date/time */}
+        <div className="flex items-center gap-2 flex-shrink-0 text-xs text-gray-500">
+          {match.isLive ? (
+            <span className="flex items-center gap-1 text-red-600 font-bold">
+              <span className="live-dot" /> {t('winner.live')}
+            </span>
+          ) : (
+            <span>{dateStr} {timeStr}</span>
+          )}
           {match.status === 'suspended' && (
             <span className="text-amber-600 font-semibold">{t('winner.matchSuspended')}</span>
           )}
@@ -68,13 +81,13 @@ export default function MatchCard({ match }: Props) {
 
       {/* Teams + odds */}
       <div className="flex items-center gap-3">
-        {/* Teams */}
-        <div className="flex-1 min-w-0 space-y-1">
+        {/* Teams stacked: home / thin separator / away */}
+        <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <TeamBadge name={match.homeTeam} />
             <p className="font-semibold text-sm truncate">{match.homeTeam}</p>
           </div>
-          <p className="text-xs text-gray-400 ps-9">vs</p>
+          <div className="h-px bg-gray-100 my-2 ms-9" />
           <div className="flex items-center gap-2">
             <TeamBadge name={match.awayTeam} />
             <p className="font-semibold text-sm truncate">{match.awayTeam}</p>

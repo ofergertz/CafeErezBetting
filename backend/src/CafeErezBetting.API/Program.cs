@@ -47,6 +47,8 @@ builder.Services.AddHttpClient();
 // ─── Domain services ─────────────────────────────────────────────────────────
 builder.Services.AddScoped<IWinnerSyncService, WinnerScraperService>();
 builder.Services.AddSingleton<PlaywrightWinnerScraper>();
+builder.Services.AddScoped<ITotoSyncService, TotoSyncService>();
+builder.Services.AddSingleton<PlaywrightTotoScraper>();
 builder.Services.AddScoped<IFormsService, FormsService>();
 builder.Services.AddScoped<IMatchNotificationService, SignalRNotificationService>();
 builder.Services.AddScoped<ICustomerService, CustomerService>();
@@ -57,6 +59,7 @@ builder.Services.AddScoped<IProductService, ProductService>();
 
 // ─── Background service ──────────────────────────────────────────────────────
 builder.Services.AddHostedService<WinnerSyncHostedService>();
+builder.Services.AddHostedService<TotoSyncHostedService>();
 
 // ─── JWT Auth ────────────────────────────────────────────────────────────────
 var jwtSecret = builder.Configuration["Jwt:Secret"]
