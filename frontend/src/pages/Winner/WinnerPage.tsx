@@ -81,6 +81,41 @@ function leagueFlag(league: string): string {
     ['ונצואלה', '🇻🇪'],
     ['פרגוואי', '🇵🇾'],
     ['אורוגוואי', '🇺🇾'],
+    ['דרום אפריקה', '🇿🇦'], ['אפריקאית', '🇿🇦'],
+    ['לטביה', '🇱🇻'], ['לטבי', '🇱🇻'],
+    ['אסטוניה', '🇪🇪'],
+    ['ליטא', '🇱🇹'], ['ליטאי', '🇱🇹'],
+    ['סלובניה', '🇸🇮'],
+    ['סלובקיה', '🇸🇰'],
+    ['אלבניה', '🇦🇱'],
+    ['קפריסין', '🇨🇾'],
+    ['איסלנד', '🇮🇸'],
+    ['מקדוניה', '🇲🇰'],
+    ['בוסניה', '🇧🇦'],
+    ['מונטנגרו', '🇲🇪'],
+    ['מולדובה', '🇲🇩'],
+    ['בלארוס', '🇧🇾'],
+    ['אזרבייג', '🇦🇿'],
+    ['קזחסטן', '🇰🇿'],
+    ['ארמניה', '🇦🇲'],
+    ['סין', '🇨🇳'], ['סינית', '🇨🇳'],
+    ['הודו', '🇮🇳'],
+    ['תאילנד', '🇹🇭'],
+    ['אינדונזיה', '🇮🇩'],
+    ['סעודיה', '🇸🇦'], ['סעודית', '🇸🇦'],
+    ['קטאר', '🇶🇦'],
+    ['אמירויות', '🇦🇪'],
+    ['אירן', '🇮🇷'],
+    ['ניו זילנד', '🇳🇿'],
+    ['קנדה', '🇨🇦'],
+    ['גאנה', '🇬🇭'],
+    ['חוף השנהב', '🇨🇮'],
+    ['סנגל', '🇸🇳'],
+    ['טוניסיה', '🇹🇳'],
+    ['אלג', '🇩🇿'],
+    ['קוסטה ריקה', '🇨🇷'],
+    ['פנמה', '🇵🇦'],
+    ['גואטמלה', '🇬🇹'],
   ]
   for (const [kw, flag] of map) {
     if (league.includes(kw)) return flag
@@ -260,11 +295,11 @@ export default function WinnerPage() {
           <div className="space-y-3">
             {leagueOrder.map(league => (
               <section key={league}>
-                {/* League header — dark bar */}
-                <div className="flex items-center gap-2 bg-gray-800 text-white px-3 py-2 rounded-t-lg" dir="rtl">
-                  <span className="text-sm leading-none">{leagueFlag(league)}</span>
-                  <h3 className="text-xs font-bold tracking-wide truncate flex-1">{league}</h3>
-                  <span className="text-xs text-gray-400">{leagueMap[league].length}</span>
+                {/* League header — dark navy bar, like the betting site */}
+                <div className="flex items-center gap-2 bg-slate-800 text-white px-3 py-2.5 rounded-t-lg border-b-2 border-slate-900" dir="rtl">
+                  <span className="text-base leading-none flex-shrink-0">{leagueFlag(league)}</span>
+                  <h3 className="text-sm font-bold tracking-wide truncate flex-1">{league}</h3>
+                  <span className="text-xs text-slate-300 bg-slate-700 rounded px-1.5 py-0.5 flex-shrink-0">{leagueMap[league].length}</span>
                 </div>
                 {/* Match rows */}
                 <div className="border border-t-0 border-gray-200 rounded-b-lg overflow-hidden">
