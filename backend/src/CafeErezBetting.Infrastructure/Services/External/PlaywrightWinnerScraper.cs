@@ -58,6 +58,14 @@ public class PlaywrightWinnerScraper(
         "סך הכל קרנות", "סך הכל שערים", "מעל/מתחת שערים", "מעל/מתחת קרנות",
         "מעל/מתחת", "דאבל צ'אנס", "דאבל צאנס", "אסיאן הנדיקפ", "אסיאן",
         "מי ינצח", "תוצאה נכונה", "הפסקה ראשונה", "הפסקה שנייה",
+        "מחצית ראשונה", "מחצית שנייה", "סה\"כ קרנות",
+    ];
+
+    // Sport prefixes that begin a league-header row, e.g. "כדורגל - פינלנד - ליגה פינית"
+    private static readonly string[] SportPrefixes =
+    [
+        "כדורגל", "כדורסל", "כדוריד", "כדורעף", "טניס", "הוקי", "בייסבול",
+        "פוטבול אמריקאי", "רוגבי", "סנוקר", "חץ", "טניס שולחן", "קריקט",
     ];
 
     // ── Config ────────────────────────────────────────────────────────────────
@@ -270,19 +278,29 @@ public class PlaywrightWinnerScraper(
         {
             try
             {
-                // Detect league header rows by CSS class first
+                var fullText = StripInvisibleChars((await row.InnerTextAsync()).Trim());
+
+                // Detect league header rows by text pattern first
+                // (e.g. "כדורגל - פינלנד - ליגה פינית" — often a single colspan cell)
+                if (IsLeagueHeaderText(fullText))
+                {
+                    currentLeague = fullText.Length > 100 ? fullText[..100] : fullText;
+                    logger.LogDebug("League header (text): {League}", currentLeague);
+                    continue;
+                }
+
+                // Detect league header rows by CSS class as a backup
                 var rowClass = (await row.GetAttributeAsync("class") ?? "").ToLower();
                 if (rowClass.Contains("category") || rowClass.Contains("league") ||
                     rowClass.Contains("header") || rowClass.Contains("group") ||
                     rowClass.Contains("title") || rowClass.Contains("section"))
                 {
-                    var headerText = StripInvisibleChars((await row.InnerTextAsync()).Trim());
-                    if (headerText.Length >= 4 && HasLetterChar(headerText))
+                    if (fullText.Length >= 4 && HasLetterChar(fullText) && !HasOddsToken(fullText))
                     {
-                        currentLeague = headerText.Length > 100 ? headerText[..100] : headerText;
+                        currentLeague = fullText.Length > 100 ? fullText[..100] : fullText;
                         logger.LogDebug("League header (class '{Class}'): {League}", rowClass, currentLeague);
+                        continue;
                     }
-                    continue;
                 }
 
                 var cells = await row.QuerySelectorAllAsync("td");
@@ -325,7 +343,7 @@ public class PlaywrightWinnerScraper(
                 logger.LogDebug(ex, "Row parse error");
             }
 
-            if (index >= 300) break;
+            if (index >= 1000) break;
         }
 
         if (results.Count == 0)
@@ -467,8 +485,10 @@ public class PlaywrightWinnerScraper(
         var homeTeam = teamCells[0].Trim();
         var awayTeam = teamCells[^1].Trim();
         if (homeTeam.Length < 2 || awayTeam.Length < 2 || homeTeam == awayTeam) return null;
+        if (IsJunkTeam(homeTeam) || IsJunkTeam(awayTeam)) return null;
 
-        var isLive = scheduledAt <= DateTime.UtcNow;
+        // A match showing a live minute is live, regardless of scheduled time.
+        var isLive = detectedMinute is not null || scheduledAt <= DateTime.UtcNow;
 
         logger.LogDebug("[Cell] #{Index} {Home} v {Away} {O1}/{OX}/{O2} @ {At:HH:mm}",
             index, homeTeam, awayTeam, odds[0], odds[1], odds[2], scheduledAt);
@@ -681,6 +701,34 @@ public class PlaywrightWinnerScraper(
             if (char.IsLetter(c)) return true;
         return false;
     }
+
+    /// <summary>
+    /// True for a league-header row like "כדורגל - פינלנד - ליגה פינית":
+    /// begins with a sport keyword, contains a " - " separator, and has no betting odds.
+    /// </summary>
+    private static bool IsLeagueHeaderText(string text)
+    {
+        if (text.Length is < 5 or > 120) return false;
+        if (!text.Contains(" - ")) return false;
+        if (!SportPrefixes.Any(text.Contains)) return false;
+        return !HasOddsToken(text);
+    }
+
+    /// <summary>True if any whitespace-separated token is a betting-odds decimal (1.01–49.99).</summary>
+    private static bool HasOddsToken(string text)
+    {
+        foreach (var token in text.Split([' ', '\n', '\t', '\r'], StringSplitOptions.RemoveEmptyEntries))
+            if (TryParseDecimal(token, out var d) && d is >= 1.01m and <= 49.99m)
+                return true;
+        return false;
+    }
+
+    /// <summary>Rejects leaked JS field values that are never real team names.</summary>
+    private static bool IsJunkTeam(string s)
+        => string.Equals(s, "True",  StringComparison.OrdinalIgnoreCase)
+        || string.Equals(s, "False", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(s, "null",  StringComparison.OrdinalIgnoreCase)
+        || string.Equals(s, "undefined", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>Strips trailing handicap notation like "(+1)", "(-1.5)", "(2.5)".</summary>
     private static string CleanTeamName(string s)
