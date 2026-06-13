@@ -72,6 +72,7 @@ export interface WinnerMatch {
   isLive: boolean
   betType?: string | null
   handicap?: string | null
+  subMarket?: number | null
 }
 
 export interface BetSlipItem {

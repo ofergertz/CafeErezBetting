@@ -14,7 +14,8 @@ public record WinnerMatchDto(
     bool    IsLive,
     DateTime LastUpdated,
     string? BetType = null,
-    string? Handicap = null
+    string? Handicap = null,
+    int? SubMarket = null
 );
 
 // JSON keys must match frontend: '1', 'X', '2'
