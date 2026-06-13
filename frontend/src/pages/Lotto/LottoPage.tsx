@@ -7,9 +7,10 @@ import { NumberGrid } from '@/components/forms/NumberGrid'
 import { SubmitSuccessOverlay } from '@/components/forms/SubmitSuccessOverlay'
 import { Sparkles } from 'lucide-react'
 
-const COST_REGULAR = 3
-const COST_DOUBLE  = 6
-const MAX_ROWS = 14  // 7 pairs maximum (real Lotto form: 2–14 tables in even multiples)
+const COST_REGULAR     = 3
+const COST_DOUBLE      = 6
+const MAX_ROWS_REGULAR = 14  // 7 pairs — regular Lotto
+const MAX_ROWS_DOUBLE  = 10  // 5 pairs — Lotto Double
 const NUMBERS_MAX = 37
 const STRONG_MAX = 7
 const PICK_COUNT = 6
@@ -40,6 +41,7 @@ export default function LottoPage() {
   const [showSuccess, setShowSuccess]         = useState(false)
 
   const COST_PER_ROW = isDouble ? COST_DOUBLE : COST_REGULAR
+  const maxRows      = isDouble ? MAX_ROWS_DOUBLE : MAX_ROWS_REGULAR
   const successTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
@@ -96,9 +98,16 @@ export default function LottoPage() {
     )
   }
 
+  // When switching to Double, trim rows to its lower max (10)
+  const handleSetDouble = (double: boolean) => {
+    setIsDouble(double)
+    if (double && rows.length > MAX_ROWS_DOUBLE)
+      setRows(prev => prev.slice(0, MAX_ROWS_DOUBLE))
+  }
+
   // Always adds 2 rows (one pair) — Lotto forms require even multiples of tables
   const addPair = () => {
-    if (rows.length < MAX_ROWS)
+    if (rows.length < maxRows)
       setRows(prev => [...prev, createEmptyRow(), createEmptyRow()])
   }
 
@@ -144,7 +153,7 @@ export default function LottoPage() {
         <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
           <button
             type="button"
-            onClick={() => setIsDouble(false)}
+            onClick={() => handleSetDouble(false)}
             className={`flex-1 py-2 rounded-md text-sm font-semibold transition-all ${
               !isDouble ? 'bg-white text-purple-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'
             }`}
@@ -153,7 +162,7 @@ export default function LottoPage() {
           </button>
           <button
             type="button"
-            onClick={() => setIsDouble(true)}
+            onClick={() => handleSetDouble(true)}
             className={`flex-1 py-2 rounded-md text-sm font-semibold transition-all ${
               isDouble ? 'bg-white text-purple-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'
             }`}
@@ -234,10 +243,10 @@ export default function LottoPage() {
         type="button"
         className="btn-secondary w-full"
         onClick={addPair}
-        disabled={rows.length >= MAX_ROWS || showSuccess}
+        disabled={rows.length >= maxRows || showSuccess}
       >
         + הוסף 2 טבלאות
-        <span className="text-xs text-gray-400 me-1.5">({pairCount}/{MAX_ROWS / 2} זוגות)</span>
+        <span className="text-xs text-gray-400 me-1.5">({pairCount}/{maxRows / 2} זוגות)</span>
       </button>
 
       {/* Summary + submit */}
