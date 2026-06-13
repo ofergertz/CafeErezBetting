@@ -12,13 +12,15 @@ namespace CafeErezBetting.Infrastructure.Services.External;
 /// <summary>
 /// Syncs Winner match data from external sources (backend-only, never client).
 /// Primary source: Telesport JSON API (fast, clean structured data).
-/// Fallback: Playwright HTML scraping (slower, used when API is unreachable).
+/// Secondary source: Livegames JSON API (supplementary, one record per game).
+/// Fallback: Playwright HTML scraping (slower, used when both APIs are unreachable).
 /// Falls back to Redis cache or DB when all live sources fail.
 /// </summary>
 public class WinnerScraperService(
     AppDbContext db,
     IDistributedCache cache,
     TelesportApiClient telesportApi,
+    LivegamesApiClient livegamesApi,
     PlaywrightWinnerScraper playwright,
     ILogger<WinnerScraperService> logger
 ) : IWinnerSyncService
@@ -95,10 +97,13 @@ public class WinnerScraperService(
     public async Task<List<WinnerMatchDto>> ScrapeFromSourceAsync(int sourceIndex, CancellationToken ct = default)
     {
         logger.LogInformation("Direct scrape from source {Index}", sourceIndex);
-        // Index 0 = Telesport JSON API (fast), any other = Playwright HTML scraper
-        return sourceIndex == 0
-            ? await telesportApi.FetchWinnerMatchesAsync(ct)
-            : await playwright.ScrapeAsync(sourceIndex, ct);
+        // 0 = Telesport API, 1 = Livegames API, any other = Playwright
+        return sourceIndex switch
+        {
+            0 => await telesportApi.FetchWinnerMatchesAsync(ct),
+            1 => await livegamesApi.FetchWinnerMatchesAsync(ct),
+            _ => await playwright.ScrapeAsync(sourceIndex, ct),
+        };
     }
 
     private async Task<List<WinnerMatchDto>> ScrapeExternalAsync(CancellationToken ct)
@@ -112,14 +117,30 @@ public class WinnerScraperService(
                 logger.LogInformation("TelesportAPI sync succeeded: {Count} matches", apiMatches.Count);
                 return apiMatches;
             }
-            logger.LogWarning("TelesportAPI returned 0 matches — falling back to Playwright");
+            logger.LogWarning("TelesportAPI returned 0 matches — trying Livegames");
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "TelesportAPI failed — falling back to Playwright");
+            logger.LogWarning(ex, "TelesportAPI failed — trying Livegames");
         }
 
-        // 2. Fallback: Playwright scraper (slower, ~30–60 s)
+        // 2. Secondary: Livegames JSON API
+        try
+        {
+            var lgMatches = await livegamesApi.FetchWinnerMatchesAsync(ct);
+            if (lgMatches.Count > 0)
+            {
+                logger.LogInformation("LivegamesAPI sync succeeded: {Count} matches", lgMatches.Count);
+                return lgMatches;
+            }
+            logger.LogWarning("LivegamesAPI returned 0 matches — falling back to Playwright");
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "LivegamesAPI failed — falling back to Playwright");
+        }
+
+        // 3. Last resort: Playwright scraper (slower, ~30–60 s)
         try
         {
             var scraped = await playwright.ScrapeAllAsync(ct);
