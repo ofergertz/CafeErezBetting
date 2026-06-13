@@ -9,8 +9,7 @@ import { Sparkles } from 'lucide-react'
 
 const COST_REGULAR = 3
 const COST_DOUBLE  = 6
-const MIN_ROWS = 2
-const MAX_ROWS = 10
+const MAX_ROWS = 14  // 7 pairs maximum (real Lotto form: 2–14 tables in even multiples)
 const NUMBERS_MAX = 37
 const STRONG_MAX = 7
 const PICK_COUNT = 6
@@ -35,19 +34,16 @@ function randomSample(pool: number[], count: number): number[] {
 
 export default function LottoPage() {
   const { t } = useTranslation()
-  const [isDouble, setIsDouble]       = useState(false)
-  const [rows, setRows]               = useState<LottoRowState[]>([createEmptyRow(), createEmptyRow()])
+  const [isDouble, setIsDouble]               = useState(false)
+  const [rows, setRows]                       = useState<LottoRowState[]>([createEmptyRow(), createEmptyRow()])
   const [validationError, setValidationError] = useState<string | null>(null)
-  const [showSuccess, setShowSuccess] = useState(false)
+  const [showSuccess, setShowSuccess]         = useState(false)
 
   const COST_PER_ROW = isDouble ? COST_DOUBLE : COST_REGULAR
-  // Fix 1: store timer ref to clear on unmount (memory leak prevention)
   const successTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
-    return () => {
-      if (successTimer.current) clearTimeout(successTimer.current)
-    }
+    return () => { if (successTimer.current) clearTimeout(successTimer.current) }
   }, [])
 
   const mutation = useMutation({
@@ -64,12 +60,12 @@ export default function LottoPage() {
 
   const handleNumberToggle = (rowIdx: number, n: number) => {
     setValidationError(null)
-    setRows((prev) =>
+    setRows(prev =>
       prev.map((row, i) => {
         if (i !== rowIdx) return row
         const already = row.numbers.includes(n)
         const numbers = already
-          ? row.numbers.filter((x) => x !== n)
+          ? row.numbers.filter(x => x !== n)
           : row.numbers.length < PICK_COUNT
           ? [...row.numbers, n]
           : row.numbers
@@ -80,7 +76,7 @@ export default function LottoPage() {
 
   const handleStrongToggle = (rowIdx: number, n: number) => {
     setValidationError(null)
-    setRows((prev) =>
+    setRows(prev =>
       prev.map((row, i) =>
         i === rowIdx ? { ...row, strong: row.strong === n ? null : n } : row,
       ),
@@ -88,49 +84,62 @@ export default function LottoPage() {
   }
 
   const handleQuickPick = (rowIdx: number) => {
-    setRows((prev) =>
+    setRows(prev =>
       prev.map((row, i) => {
         if (i !== rowIdx) return row
         const needed = PICK_COUNT - row.numbers.length
-        const pool = Array.from({ length: NUMBERS_MAX }, (_, k) => k + 1).filter(
-          (n) => !row.numbers.includes(n),
-        )
-        const extra = randomSample(pool, needed)
-        const numbers = [...row.numbers, ...extra]
-        const strong = row.strong ?? (Math.floor(Math.random() * STRONG_MAX) + 1)
+        const pool = Array.from({ length: NUMBERS_MAX }, (_, k) => k + 1).filter(n => !row.numbers.includes(n))
+        const numbers = [...row.numbers, ...randomSample(pool, needed)]
+        const strong  = row.strong ?? (Math.floor(Math.random() * STRONG_MAX) + 1)
         return { ...row, numbers, strong }
       }),
     )
   }
 
+  // Always adds 2 rows (one pair) — Lotto forms require even multiples of tables
+  const addPair = () => {
+    if (rows.length < MAX_ROWS)
+      setRows(prev => [...prev, createEmptyRow(), createEmptyRow()])
+  }
+
+  // Removes both rows of a pair
+  const removePair = (pairIdx: number) => {
+    const start = pairIdx * 2
+    setRows(prev => prev.filter((_, i) => i !== start && i !== start + 1))
+  }
+
   const handleSubmit = () => {
-    const valid = rows.every((r) => r.numbers.length === PICK_COUNT && r.strong !== null)
+    const valid = rows.every(r => r.numbers.length === PICK_COUNT && r.strong !== null)
     if (!valid) {
       setValidationError(t('lotto.validation'))
       return
     }
     const payload: LottoPayload = {
-      rows: rows.map((r) => ({ numbers: r.numbers, strong: r.strong as number } satisfies LottoRow)),
+      rows: rows.map(r => ({ numbers: r.numbers, strong: r.strong as number } satisfies LottoRow)),
       costPerRow: COST_PER_ROW,
     }
     mutation.mutate(payload)
   }
 
   const totalCost = rows.length * COST_PER_ROW
+  const pairCount = rows.length / 2
 
   return (
     <div className="max-w-3xl mx-auto space-y-4 pb-8">
       <SubmitSuccessOverlay visible={showSuccess} />
 
+      {/* Banner */}
       <div className="bg-gradient-to-l from-purple-700 to-purple-500 rounded-xl p-4 mb-2 flex items-center gap-3">
         <Sparkles size={28} className="text-white" />
         <div className="flex-1">
           <h2 className="text-white font-bold text-lg">לוטו</h2>
-          <p className="text-purple-100 text-sm">בחר 6 מספרים + חזק</p>
+          <p className="text-purple-100 text-sm">
+            בחר 6 מספרים + חזק · {rows.length} טבלאות ({pairCount} {pairCount === 1 ? 'זוג' : 'זוגות'})
+          </p>
         </div>
       </div>
 
-      {/* לוטו רגיל / לוטו דאבל toggle */}
+      {/* Regular / Double toggle */}
       <div className="card p-3">
         <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
           <button
@@ -154,60 +163,109 @@ export default function LottoPage() {
         </div>
       </div>
 
-      {rows.map((row, rowIdx) => (
-        <div key={rowIdx} className="card p-4 space-y-4">
-          <div className="flex items-center justify-between">
-            <span className="font-semibold text-sm text-gray-600">#{rowIdx + 1}</span>
-            <div className="flex gap-2">
-              {/* Fix 5: min-h-[44px] on kiosk buttons */}
-              <button type="button" className="btn-secondary text-xs px-3 min-h-[44px]"
-                onClick={() => handleQuickPick(rowIdx)}>
-                {t('lotto.quickPick')}
+      {/* Pairs of tables */}
+      {Array.from({ length: pairCount }, (_, pairIdx) => (
+        <div key={pairIdx} className="space-y-3">
+          {/* Pair header */}
+          <div className="flex items-center justify-between px-1 pt-1">
+            <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">
+              טבלאות {pairIdx * 2 + 1}–{pairIdx * 2 + 2}
+            </span>
+            {pairCount > 1 && (
+              <button
+                type="button"
+                disabled={showSuccess}
+                onClick={() => removePair(pairIdx)}
+                className="text-xs text-red-500 hover:text-red-700 font-semibold px-2 py-1 rounded min-h-[32px] disabled:opacity-40"
+              >
+                הסר זוג ✕
               </button>
-              {rows.length > MIN_ROWS && (
-                <button type="button" className="btn-danger text-xs px-3 min-h-[44px]"
-                  onClick={() => setRows((prev) => prev.filter((_, i) => i !== rowIdx))}>
-                  ✕
-                </button>
-              )}
-            </div>
+            )}
           </div>
 
-          <div>
-            <p className="text-xs font-semibold text-gray-500 mb-2">
-              {t('lotto.numbers')} ({row.numbers.length}/{PICK_COUNT})
-            </p>
-            <NumberGrid max={NUMBERS_MAX} selected={row.numbers}
-              onToggle={(n) => handleNumberToggle(rowIdx, n)} disabled={showSuccess} />
-          </div>
+          {/* Two row cards */}
+          {[0, 1].map(offset => {
+            const rowIdx = pairIdx * 2 + offset
+            const row = rows[rowIdx]
+            return (
+              <div key={rowIdx} className="card p-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-sm text-gray-600">טבלה #{rowIdx + 1}</span>
+                  <button
+                    type="button"
+                    className="btn-secondary text-xs px-3 min-h-[44px]"
+                    onClick={() => handleQuickPick(rowIdx)}
+                    disabled={showSuccess}
+                  >
+                    {t('lotto.quickPick')}
+                  </button>
+                </div>
 
-          <div>
-            <p className="text-xs font-semibold text-amber-600 mb-2">{t('lotto.strong')}</p>
-            <NumberGrid max={STRONG_MAX} selected={row.strong !== null ? [row.strong] : []}
-              onToggle={(n) => handleStrongToggle(rowIdx, n)} isStrong disabled={showSuccess} />
-          </div>
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 mb-2">
+                    {t('lotto.numbers')} ({row.numbers.length}/{PICK_COUNT})
+                  </p>
+                  <NumberGrid
+                    max={NUMBERS_MAX}
+                    selected={row.numbers}
+                    onToggle={n => handleNumberToggle(rowIdx, n)}
+                    disabled={showSuccess}
+                  />
+                </div>
+
+                <div>
+                  <p className="text-xs font-semibold text-amber-600 mb-2">{t('lotto.strong')}</p>
+                  <NumberGrid
+                    max={STRONG_MAX}
+                    selected={row.strong !== null ? [row.strong] : []}
+                    onToggle={n => handleStrongToggle(rowIdx, n)}
+                    isStrong
+                    disabled={showSuccess}
+                  />
+                </div>
+              </div>
+            )
+          })}
         </div>
       ))}
 
-      <button type="button" className="btn-secondary" onClick={() => {
-        if (rows.length < MAX_ROWS) setRows((prev) => [...prev, createEmptyRow()])
-      }} disabled={rows.length >= MAX_ROWS}>
-        + {t('lotto.addRow')}
+      {/* Add pair button */}
+      <button
+        type="button"
+        className="btn-secondary w-full"
+        onClick={addPair}
+        disabled={rows.length >= MAX_ROWS || showSuccess}
+      >
+        + הוסף 2 טבלאות
+        <span className="text-xs text-gray-400 me-1.5">({pairCount}/{MAX_ROWS / 2} זוגות)</span>
       </button>
 
+      {/* Summary + submit */}
       <div className="card p-4 space-y-2">
-        <div className="flex justify-between text-sm">
-          <span className="text-gray-500">{t('lotto.costPerRow')}</span>
-          <span className="font-semibold">{t('common.currency')}{COST_PER_ROW.toFixed(2)}</span>
+        <div className="flex justify-between text-sm text-gray-500">
+          <span>{t('lotto.costPerRow')}</span>
+          <span className="font-semibold text-gray-800">{t('common.currency')}{COST_PER_ROW.toFixed(2)}</span>
         </div>
-        <div className="flex justify-between text-base font-bold">
+        <div className="flex justify-between text-sm text-gray-500">
+          <span>מספר טבלאות</span>
+          <span className="font-semibold text-gray-800">{rows.length}</span>
+        </div>
+        <div className="flex justify-between text-base font-bold border-t border-[--color-border] pt-2 mt-1">
           <span>{t('lotto.totalCost')}</span>
           <span className="text-[--color-accent]">{t('common.currency')}{totalCost.toFixed(2)}</span>
         </div>
-        {validationError && <p className="text-[--color-danger] text-sm font-semibold pt-1">⚠️ {validationError}</p>}
-        {mutation.isError && <p className="text-[--color-danger] text-sm">{t('common.error')}</p>}
-        <button type="button" className="btn-primary w-full mt-2" onClick={handleSubmit}
-          disabled={mutation.isPending || showSuccess}>
+        {validationError && (
+          <p className="text-[--color-danger] text-sm font-semibold pt-1">⚠️ {validationError}</p>
+        )}
+        {mutation.isError && (
+          <p className="text-[--color-danger] text-sm">{t('common.error')}</p>
+        )}
+        <button
+          type="button"
+          className="btn-primary w-full mt-2"
+          onClick={handleSubmit}
+          disabled={mutation.isPending || showSuccess}
+        >
           {mutation.isPending ? t('common.loading') : t('common.submit')}
         </button>
       </div>
