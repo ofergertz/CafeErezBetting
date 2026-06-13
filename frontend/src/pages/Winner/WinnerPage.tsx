@@ -8,11 +8,13 @@ import { useAuthStore } from '@/store/authStore'
 import type { WinnerMatch, SyncStatus } from '@/types'
 import BetSlip from './BetSlip'
 import MatchCard from './MatchCard'
-import { CalendarClock, CheckCircle2, Trophy, Wifi, AlertTriangle, RefreshCw } from 'lucide-react'
+import { CalendarClock, CheckCircle2, Trophy, Wifi, AlertTriangle, RefreshCw, ChevronDown } from 'lucide-react'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ErrorState } from '@/components/ui/ErrorState'
 
 type FilterTab = 'all' | 'live' | 'upcoming' | 'finished'
+
+interface Source { index: number; name: string; url: string }
 
 interface TabConfig {
   key: FilterTab
@@ -22,43 +24,94 @@ interface TabConfig {
 }
 
 const TABS: TabConfig[] = [
-  {
-    key: 'all',
-    label: 'הכל',
-    filter: (m) => m.status !== 'finished',
-  },
-  {
-    key: 'live',
-    label: 'לייב',
-    icon: <span className="live-dot" />,
-    filter: (m) => m.isLive,
-  },
-  {
-    key: 'upcoming',
-    label: 'לא התחילו',
-    icon: <CalendarClock size={13} />,
-    filter: (m) => m.status === 'upcoming' && !m.isLive,
-  },
-  {
-    key: 'finished',
-    label: 'הסתיימו',
-    icon: <CheckCircle2 size={13} />,
-    filter: (m) => m.status === 'finished',
-  },
+  { key: 'all',      label: 'הכל',         filter: () => true },
+  { key: 'live',     label: 'לייב',        icon: <span className="live-dot" />, filter: (m) => m.isLive },
+  { key: 'upcoming', label: 'לא התחילו',   icon: <CalendarClock size={13} />,   filter: (m) => m.status === 'upcoming' && !m.isLive },
+  { key: 'finished', label: 'הסתיימו',     icon: <CheckCircle2 size={13} />,    filter: (m) => m.status === 'finished' },
 ]
+
+// Map league name keywords → flag emoji
+function leagueFlag(league: string): string {
+  const map: [string, string][] = [
+    ['ישראל', '🇮🇱'], ['ליגת העל', '🇮🇱'], ['ליגה א', '🇮🇱'], ['ווינר', '🇮🇱'],
+    ['ספרד', '🇪🇸'], ['לה ליגה', '🇪🇸'], ['La Liga', '🇪🇸'], ['ספרדי', '🇪🇸'],
+    ['אנגלי', '🏴󠁧󠁢󠁥󠁮󠁧󠁿'], ['Premier', '🏴󠁧󠁢󠁥󠁮󠁧󠁿'], ['אנגלית', '🏴󠁧󠁢󠁥󠁮󠁧󠁿'],
+    ['גרמניה', '🇩🇪'], ['Bundesliga', '🇩🇪'], ['גרמנ', '🇩🇪'],
+    ['איטליה', '🇮🇹'], ['Serie A', '🇮🇹'], ['איטלק', '🇮🇹'],
+    ['צרפת', '🇫🇷'], ['Ligue', '🇫🇷'], ['צרפת', '🇫🇷'],
+    ['פורטוגל', '🇵🇹'],
+    ['הולנד', '🇳🇱'], ['ארצות השפלה', '🇳🇱'],
+    ['בלגיה', '🇧🇪'],
+    ['טורקיה', '🇹🇷'], ['טורקי', '🇹🇷'],
+    ['יוון', '🇬🇷'], ['יוונ', '🇬🇷'],
+    ['רוסיה', '🇷🇺'], ['רוסי', '🇷🇺'],
+    ['אוקראינה', '🇺🇦'], ['אוקראינ', '🇺🇦'],
+    ['גאורגיה', '🇬🇪'], ['גאורג', '🇬🇪'],
+    ['בוליביה', '🇧🇴'],
+    ['ארגנטינה', '🇦🇷'], ['ארגנטינ', '🇦🇷'],
+    ['ברזיל', '🇧🇷'],
+    ['מקסיקו', '🇲🇽'],
+    ['Champions', '🏆'], ['צ\'מפיונס', '🏆'], ['ליגת האלופות', '🏆'],
+    ['Europa', '🇪🇺'], ['יורופה', '🇪🇺'],
+    ['שוודיה', '🇸🇪'],
+    ['נורווגיה', '🇳🇴'],
+    ['דנמרק', '🇩🇰'],
+    ['פינלנד', '🇫🇮'],
+    ['שוויץ', '🇨🇭'],
+    ['אוסטריה', '🇦🇹'],
+    ['פולין', '🇵🇱'],
+    ['צ\'כיה', '🇨🇿'], ['צ׳כיה', '🇨🇿'],
+    ['רומניה', '🇷🇴'],
+    ['הונגריה', '🇭🇺'],
+    ['סרביה', '🇷🇸'],
+    ['קרואטיה', '🇭🇷'],
+    ['בולגריה', '🇧🇬'],
+    ['סקוטלנד', '🏴󠁧󠁢󠁳󠁣󠁴󠁿'],
+    ['אירלנד', '🇮🇪'],
+    ['יפן', '🇯🇵'],
+    ['קוריאה', '🇰🇷'],
+    ['אוסטרליה', '🇦🇺'],
+    ['מרוקו', '🇲🇦'],
+    ['מצרים', '🇪🇬'],
+    ['ניגריה', '🇳🇬'],
+    ['ארה"ב', '🇺🇸'], ['MLS', '🇺🇸'],
+    ['קולומביה', '🇨🇴'],
+    ['צ\'ילה', '🇨🇱'],
+    ['פרו', '🇵🇪'],
+    ['אקוודור', '🇪🇨'],
+    ['ונצואלה', '🇻🇪'],
+    ['פרגוואי', '🇵🇾'],
+    ['אורוגוואי', '🇺🇾'],
+  ]
+  for (const [kw, flag] of map) {
+    if (league.includes(kw)) return flag
+  }
+  return '⚽'
+}
 
 export default function WinnerPage() {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [slipOpen, setSlipOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<FilterTab>('all')
+  const [selectedSource, setSelectedSource] = useState<number | null>(null)
   const betCount  = useBetSlipStore((s) => s.items.length)
   const isAdmin   = useAuthStore((s) => s.isAdmin())
 
-  const { data: matches = [], isPending, isError, failureCount, refetch } = useQuery<WinnerMatch[]>({
-    queryKey: ['winner-matches'],
-    queryFn: () => api.get<WinnerMatch[]>('/api/winner/matches'),
-    refetchInterval: 60_000,
+  const { data: sources = [] } = useQuery<Source[]>({
+    queryKey: ['winner-sources'],
+    queryFn: () => api.get<Source[]>('/api/winner/sources'),
+    staleTime: Infinity,
+  })
+
+  const { data: matches = [], isPending, isError, isFetching, failureCount, refetch } = useQuery<WinnerMatch[]>({
+    queryKey: ['winner-matches', selectedSource],
+    queryFn: () => api.get<WinnerMatch[]>(
+      selectedSource !== null
+        ? `/api/winner/matches?source=${selectedSource}`
+        : '/api/winner/matches'
+    ),
+    refetchInterval: selectedSource === null ? 60_000 : false,
     retry: 8,
     retryDelay: (attempt) => Math.min(3_000 * 2 ** attempt, 30_000),
   })
@@ -69,6 +122,7 @@ export default function WinnerPage() {
     refetchInterval: 60_000,
     retry: 3,
     retryDelay: (attempt) => Math.min(3_000 * 2 ** attempt, 15_000),
+    enabled: selectedSource === null,
   })
 
   const syncMutation = useMutation({
@@ -80,8 +134,9 @@ export default function WinnerPage() {
   })
 
   const handleMatchesUpdated = useCallback((updated: unknown) => {
-    queryClient.setQueryData(['winner-matches'], updated)
-  }, [queryClient])
+    if (selectedSource === null)
+      queryClient.setQueryData(['winner-matches', null], updated)
+  }, [queryClient, selectedSource])
 
   useMatchesHub(handleMatchesUpdated)
 
@@ -90,9 +145,11 @@ export default function WinnerPage() {
       <div className="text-center">
         <div className="w-8 h-8 border-2 border-[--color-accent] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
         <p className="text-sm">
-          {failureCount > 0 ? 'מתחבר לשרת...' : t('common.loading')}
+          {selectedSource !== null
+            ? `טוען ממקור ${selectedSource + 1}...`
+            : failureCount > 0 ? 'מתחבר לשרת...' : t('common.loading')}
         </p>
-        {failureCount > 2 && (
+        {failureCount > 2 && selectedSource === null && (
           <p className="text-xs text-gray-400 mt-1">השרת עדיין מתחיל, אנא המתן...</p>
         )}
       </div>
@@ -105,14 +162,18 @@ export default function WinnerPage() {
     </div>
   )
 
-  const liveCount     = matches.filter(m => m.isLive).length
-  const filteredMatches = TABS.find(t => t.key === activeTab)!.filter
+  const liveCount = matches.filter(m => m.isLive).length
+  const tabFilter = TABS.find(t => t.key === activeTab)!.filter
+  const visibleMatches = matches.filter(tabFilter)
 
-  // For 'all' tab — show live first, then upcoming with section headers
-  const visibleMatches = matches.filter(filteredMatches)
-  const showSections   = activeTab === 'all'
-  const live           = visibleMatches.filter(m => m.isLive)
-  const rest           = visibleMatches.filter(m => !m.isLive)
+  // Group by league, preserving scraper order
+  const leagueOrder: string[] = []
+  const leagueMap: Record<string, WinnerMatch[]> = {}
+  for (const m of visibleMatches) {
+    const key = m.league || 'ווינר'
+    if (!leagueMap[key]) { leagueMap[key] = []; leagueOrder.push(key) }
+    leagueMap[key].push(m)
+  }
 
   return (
     <div className="flex gap-6 relative">
@@ -134,8 +195,31 @@ export default function WinnerPage() {
           )}
         </div>
 
-        {/* Demo data warning + admin sync button */}
-        {syncStatus?.isMock && (
+        {/* Source selector */}
+        {sources.length > 0 && (
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-xs text-gray-500 flex-shrink-0">מקור נתונים:</span>
+            <div className="relative">
+              <select
+                value={selectedSource ?? ''}
+                onChange={e => setSelectedSource(e.target.value === '' ? null : Number(e.target.value))}
+                className="appearance-none text-sm border border-[--color-border] rounded-lg ps-3 pe-8 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-[--color-accent] cursor-pointer"
+              >
+                <option value="">נתונים מאוחסנים</option>
+                {sources.map(s => (
+                  <option key={s.index} value={s.index}>{s.name}</option>
+                ))}
+              </select>
+              <ChevronDown size={14} className="absolute end-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+            </div>
+            {isFetching && (
+              <div className="w-4 h-4 border-2 border-[--color-accent] border-t-transparent rounded-full animate-spin" />
+            )}
+          </div>
+        )}
+
+        {/* Demo data warning (only when using cached data) */}
+        {selectedSource === null && syncStatus?.isMock && (
           <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-4 text-sm" dir="rtl">
             <AlertTriangle size={16} className="text-amber-600 flex-shrink-0" />
             <span className="text-amber-800 flex-1">
@@ -209,38 +293,28 @@ export default function WinnerPage() {
           </div>
         )}
 
-        {/* Matches */}
+        {/* Matches — grouped by league */}
         {visibleMatches.length === 0 ? (
           <div className="card">
             <EmptyState icon={Trophy} message={t('common.noData')} />
           </div>
-        ) : showSections ? (
-          <>
-            {live.length > 0 && (
-              <section className="mb-5">
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="live-dot" />
-                  <h2 className="text-sm font-bold text-red-600 uppercase tracking-wide">{t('winner.matchLive')}</h2>
-                </div>
-                <div className="flex flex-col gap-3">
-                  {live.map(m => <MatchCard key={m.id} match={m} />)}
-                </div>
-              </section>
-            )}
-            {rest.length > 0 && (
-              <section>
-                <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5">
-                  <CalendarClock size={14} /> משחקים קרובים
-                </h2>
-                <div className="flex flex-col gap-3">
-                  {rest.map(m => <MatchCard key={m.id} match={m} />)}
-                </div>
-              </section>
-            )}
-          </>
         ) : (
-          <div className="flex flex-col gap-3">
-            {visibleMatches.map(m => <MatchCard key={m.id} match={m} />)}
+          <div className="space-y-5">
+            {leagueOrder.map(league => (
+              <section key={league}>
+                {/* League header */}
+                <div className="flex items-center gap-2 mb-2 px-1">
+                  <span className="text-base leading-none">{leagueFlag(league)}</span>
+                  <h3 className="text-xs font-bold text-gray-600 uppercase tracking-wide truncate flex-1">
+                    {league}
+                  </h3>
+                  <span className="text-xs text-gray-400">{leagueMap[league].length}</span>
+                </div>
+                <div className="flex flex-col gap-2">
+                  {leagueMap[league].map(m => <MatchCard key={m.id} match={m} />)}
+                </div>
+              </section>
+            ))}
           </div>
         )}
       </div>

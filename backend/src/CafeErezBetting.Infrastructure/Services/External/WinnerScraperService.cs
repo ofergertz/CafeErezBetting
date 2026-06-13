@@ -96,12 +96,18 @@ public class WinnerScraperService(
 
     // ── Private helpers ────────────────────────────────────────────────────────
 
+    public async Task<List<WinnerMatchDto>> ScrapeFromSourceAsync(int sourceIndex, CancellationToken ct = default)
+    {
+        logger.LogInformation("Direct scrape from source {Index}", sourceIndex);
+        return await playwright.ScrapeAsync(sourceIndex, ct);
+    }
+
     private async Task<List<WinnerMatchDto>> GetFromDbAsync(CancellationToken ct)
     {
         var matches = await db.WinnerMatches
-            .Where(m => m.Status != MatchStatus.Finished)
-            .OrderBy(m => m.ScheduledAt)
-            .Take(100)
+            .OrderByDescending(m => m.IsLive)
+            .ThenBy(m => m.ScheduledAt)
+            .Take(500)
             .ToListAsync(ct);
 
         return matches.Select(ToDto).ToList();
@@ -126,7 +132,7 @@ public class WinnerScraperService(
 
         try
         {
-            var scraped = await playwright.ScrapeAsync(ct);
+            var scraped = await playwright.ScrapeAsync(0, ct);
             if (scraped.Count > 0)
             {
                 logger.LogInformation("Playwright scrape succeeded: {Count} real matches", scraped.Count);

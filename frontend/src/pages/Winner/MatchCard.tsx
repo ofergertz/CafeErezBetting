@@ -50,24 +50,16 @@ export default function MatchCard({ match }: Props) {
 
   return (
     <div className={`card p-4 transition-opacity ${isLocked ? 'opacity-50' : ''}`}>
-      {/* Header */}
+      {/* Header: sub-market count + time/live */}
       <div className="flex items-center justify-between mb-3 gap-2">
-        {/* Left: league badge + optional bet-type badge */}
-        <div className="flex items-center gap-1.5 flex-wrap min-w-0">
-          <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-600 border border-blue-200 rounded-full px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap">
-            {match.league}
-            {match.subMarket != null && (
-              <span className="text-blue-400 font-normal">({match.subMarket})</span>
-            )}
-          </span>
-          {match.betType && (
-            <span className="inline-flex items-center bg-green-50 text-green-700 border border-green-200 rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap">
-              {match.betType}{match.handicap ? ` (${match.handicap})` : ''}
+        <div className="flex items-center gap-1.5 min-w-0">
+          {match.subMarket != null && (
+            <span className="text-xs text-gray-400 bg-gray-50 border border-gray-200 rounded px-1.5 py-0.5 font-mono">
+              ({match.subMarket})
             </span>
           )}
         </div>
 
-        {/* Right: live indicator or date/time */}
         <div className="flex items-center gap-2 flex-shrink-0 text-xs text-gray-500">
           {match.isLive ? (
             <span className="flex items-center gap-1 text-red-600 font-bold">
@@ -84,13 +76,24 @@ export default function MatchCard({ match }: Props) {
 
       {/* Teams + odds */}
       <div className="flex items-center gap-3">
-        {/* Teams stacked: home / thin separator / away */}
+        {/* Teams stacked: home / [bet type in middle] / separator / away */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <TeamBadge name={match.homeTeam} />
             <p className="font-semibold text-sm truncate">{match.homeTeam}</p>
           </div>
-          <div className="h-px bg-gray-100 my-2 ms-9" />
+
+          {match.betType ? (
+            <div className="flex items-center gap-2 my-1.5 ms-9">
+              <span className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded px-2 py-0.5 whitespace-nowrap">
+                {match.betType}{match.handicap ? ` ${match.handicap}` : ''}
+              </span>
+              <div className="flex-1 h-px bg-gray-100" />
+            </div>
+          ) : (
+            <div className="h-px bg-gray-100 my-2 ms-9" />
+          )}
+
           <div className="flex items-center gap-2">
             <TeamBadge name={match.awayTeam} />
             <p className="font-semibold text-sm truncate">{match.awayTeam}</p>
