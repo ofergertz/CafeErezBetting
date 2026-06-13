@@ -42,27 +42,42 @@ public class PlaywrightWinnerScraper(
 
     public async Task<List<WinnerMatchDto>> ScrapeAsync(CancellationToken ct = default)
     {
-        var url = config["WinnerScraper:Url"] ?? DefaultUrl;
-        logger.LogInformation("Playwright scraper starting → {Url}", url);
+        var url            = config["WinnerScraper:Url"] ?? DefaultUrl;
+        var chromiumPath   = Environment.GetEnvironmentVariable("PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH");
+        logger.LogInformation("Playwright scraper starting → {Url}  (chromium={Path})", url, chromiumPath ?? "bundled");
 
         using var playwright = await Playwright.CreateAsync();
         await using var browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
         {
-            Headless = true,
-            Args     = [
+            Headless       = true,
+            ExecutablePath = chromiumPath,   // null = Playwright's bundled Chromium
+            Args           = [
                 "--no-sandbox",
                 "--disable-setuid-sandbox",
                 "--disable-dev-shm-usage",
+                "--disable-gpu",
                 "--disable-blink-features=AutomationControlled",
+                "--disable-extensions",
+                "--window-size=1280,800",
             ],
         });
+
+        logger.LogInformation("Chromium launched successfully");
 
         var context = await browser.NewContextAsync(new BrowserNewContextOptions
         {
             UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
                         "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-            Locale    = "he-IL",
+            Locale              = "he-IL",
+            ViewportSize        = new ViewportSize { Width = 1280, Height = 800 },
+            JavaScriptEnabled   = true,
         });
+
+        // Mask common automation signals
+        await context.AddInitScriptAsync(@"
+            Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+            window.chrome = { runtime: {} };
+        ");
 
         var page = await context.NewPageAsync();
         await page.SetExtraHTTPHeadersAsync(new Dictionary<string, string>
@@ -75,8 +90,8 @@ public class PlaywrightWinnerScraper(
         {
             await page.GotoAsync(url, new PageGotoOptions
             {
-                WaitUntil = WaitUntilState.DOMContentLoaded,
-                Timeout   = 30_000,
+                WaitUntil = WaitUntilState.NetworkIdle,
+                Timeout   = 45_000,
             });
         }
         catch (PlaywrightException ex) when (ex.Message.Contains("net::ERR"))
@@ -84,12 +99,25 @@ public class PlaywrightWinnerScraper(
             logger.LogError("Network error reaching {Url}: {Error}", url, ex.Message);
             throw;
         }
+        catch (PlaywrightException ex) when (ex.Message.Contains("Timeout"))
+        {
+            // Timeout waiting for NetworkIdle — page may still have content, continue
+            logger.LogWarning("Navigation timeout on {Url} — attempting to parse anyway", url);
+        }
 
         // Give JS extra time to render dynamic content
-        await page.WaitForTimeoutAsync(4000);
+        await page.WaitForTimeoutAsync(5000);
+
+        logger.LogInformation("Page loaded: title='{Title}', url='{Url}'",
+            await page.TitleAsync(), page.Url);
 
         var matches = await ExtractMatchesAsync(page, url);
         logger.LogInformation("Playwright scraper finished — {Count} matches found", matches.Count);
+
+        // Screenshot for debugging when nothing was found
+        if (matches.Count == 0)
+            await TakeDebugScreenshotAsync(page);
+
         return matches;
     }
 
@@ -407,7 +435,7 @@ public class PlaywrightWinnerScraper(
     {
         try
         {
-            var title   = await page.TitleAsync();
+            var title    = await page.TitleAsync();
             var bodyText = await page.InnerTextAsync("body");
             logger.LogWarning(
                 "Scraper found 0 matches on {Url}. " +
@@ -419,6 +447,21 @@ public class PlaywrightWinnerScraper(
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Could not read page diagnostics");
+        }
+    }
+
+    private async Task TakeDebugScreenshotAsync(IPage page)
+    {
+        try
+        {
+            var path = Path.Combine(Path.GetTempPath(),
+                $"scraper-debug-{DateTime.UtcNow:yyyyMMdd-HHmmss}.png");
+            await page.ScreenshotAsync(new PageScreenshotOptions { Path = path, FullPage = true });
+            logger.LogWarning("Debug screenshot saved → {Path}", path);
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "Could not save debug screenshot");
         }
     }
 }
