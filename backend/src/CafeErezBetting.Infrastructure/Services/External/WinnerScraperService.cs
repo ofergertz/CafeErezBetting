@@ -12,16 +12,14 @@ namespace CafeErezBetting.Infrastructure.Services.External;
 /// <summary>
 /// Syncs Winner match data from external sources (backend-only, never client).
 /// Primary source: Telesport JSON API (fast, clean structured data).
-/// Secondary source: Livegames JSON API (supplementary, one record per game).
-/// Fallback: Playwright HTML scraping (slower, used when both APIs are unreachable).
-/// Falls back to Redis cache or DB when all live sources fail.
+/// Secondary source: Livegames JSON API (one record per game).
+/// Falls back to Redis cache or DB when both APIs fail.
 /// </summary>
 public class WinnerScraperService(
     AppDbContext db,
     IDistributedCache cache,
     TelesportApiClient telesportApi,
     LivegamesApiClient livegamesApi,
-    PlaywrightWinnerScraper playwright,
     ILogger<WinnerScraperService> logger
 ) : IWinnerSyncService
 {
@@ -97,25 +95,22 @@ public class WinnerScraperService(
     public async Task<List<WinnerMatchDto>> ScrapeFromSourceAsync(int sourceIndex, CancellationToken ct = default)
     {
         logger.LogInformation("Direct scrape from source {Index}", sourceIndex);
-        // 0 = Telesport API, 1 = Livegames API, any other = Playwright
-        return sourceIndex switch
-        {
-            0 => await telesportApi.FetchWinnerMatchesAsync(ct),
-            1 => await livegamesApi.FetchWinnerMatchesAsync(ct),
-            _ => await playwright.ScrapeAsync(sourceIndex, ct),
-        };
+        // 0 = Telesport API, 1 = Livegames API
+        return sourceIndex == 1
+            ? await livegamesApi.FetchWinnerMatchesAsync(ct)
+            : await telesportApi.FetchWinnerMatchesAsync(ct);
     }
 
     private async Task<List<WinnerMatchDto>> ScrapeExternalAsync(CancellationToken ct)
     {
-        // 1. Try Telesport JSON API (fast, ~1–2 s)
+        // 1. Primary: Telesport JSON API
         try
         {
-            var apiMatches = await telesportApi.FetchWinnerMatchesAsync(ct);
-            if (apiMatches.Count > 0)
+            var matches = await telesportApi.FetchWinnerMatchesAsync(ct);
+            if (matches.Count > 0)
             {
-                logger.LogInformation("TelesportAPI sync succeeded: {Count} matches", apiMatches.Count);
-                return apiMatches;
+                logger.LogInformation("TelesportAPI sync succeeded: {Count} matches", matches.Count);
+                return matches;
             }
             logger.LogWarning("TelesportAPI returned 0 matches — trying Livegames");
         }
@@ -127,33 +122,17 @@ public class WinnerScraperService(
         // 2. Secondary: Livegames JSON API
         try
         {
-            var lgMatches = await livegamesApi.FetchWinnerMatchesAsync(ct);
-            if (lgMatches.Count > 0)
+            var matches = await livegamesApi.FetchWinnerMatchesAsync(ct);
+            if (matches.Count > 0)
             {
-                logger.LogInformation("LivegamesAPI sync succeeded: {Count} matches", lgMatches.Count);
-                return lgMatches;
+                logger.LogInformation("LivegamesAPI sync succeeded: {Count} matches", matches.Count);
+                return matches;
             }
-            logger.LogWarning("LivegamesAPI returned 0 matches — falling back to Playwright");
+            logger.LogWarning("LivegamesAPI returned 0 matches");
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "LivegamesAPI failed — falling back to Playwright");
-        }
-
-        // 3. Last resort: Playwright scraper (slower, ~30–60 s)
-        try
-        {
-            var scraped = await playwright.ScrapeAllAsync(ct);
-            if (scraped.Count > 0)
-            {
-                logger.LogInformation("Playwright fallback succeeded: {Count} matches", scraped.Count);
-                return scraped;
-            }
-            logger.LogWarning("Playwright returned 0 matches");
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Playwright scrape also failed");
+            logger.LogError(ex, "LivegamesAPI also failed");
         }
 
         return [];
