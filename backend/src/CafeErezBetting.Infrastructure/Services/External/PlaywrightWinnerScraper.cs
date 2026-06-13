@@ -289,6 +289,10 @@ public class PlaywrightWinnerScraper(
                     continue;
                 }
 
+                // Debug: log rows that look like league headers but failed the check
+                if (fullText.Contains(" - ") && SportPrefixes.Any(fullText.Contains) && HasOddsToken(fullText))
+                    logger.LogDebug("Skipped potential league header (has odds): {Text}", fullText.Length > 80 ? fullText[..80] : fullText);
+
                 // Detect league header rows by CSS class as a backup
                 var rowClass = (await row.GetAttributeAsync("class") ?? "").ToLower();
                 if (rowClass.Contains("category") || rowClass.Contains("league") ||
@@ -329,7 +333,7 @@ public class PlaywrightWinnerScraper(
                 if (match is null)
                 {
                     var rowText = (await row.InnerTextAsync()).Trim();
-                    match = TryParseFromText(rowText, now, index);
+                    match = TryParseFromText(rowText, now, index, currentLeague);
                 }
 
                 if (match is not null)
@@ -500,7 +504,7 @@ public class PlaywrightWinnerScraper(
 
     // ── Text-based parser (fallback for div/span layouts) ─────────────────────
 
-    private WinnerMatchDto? TryParseFromText(string text, DateTime baseTime, int index)
+    private WinnerMatchDto? TryParseFromText(string text, DateTime baseTime, int index, string? overrideLeague = null)
     {
         if (string.IsNullOrWhiteSpace(text)) return null;
 
@@ -559,7 +563,7 @@ public class PlaywrightWinnerScraper(
         var awayTeam = string.Join(" ", teamParts.Skip(mid)).Trim();
         if (homeTeam.Length < 2 || awayTeam.Length < 2) return null;
 
-        var league = DetectLeague(parts) ?? "ווינר";
+        var league = overrideLeague ?? DetectLeague(parts) ?? "ווינר";
         var isLive = scheduledAt <= DateTime.UtcNow;
 
         logger.LogDebug("[Text] #{Index} {Home} v {Away} {O1}/{OX}/{O2} @ {At:HH:mm}",
@@ -714,11 +718,15 @@ public class PlaywrightWinnerScraper(
         return !HasOddsToken(text);
     }
 
-    /// <summary>True if any whitespace-separated token is a betting-odds decimal (1.01–49.99).</summary>
+    /// <summary>
+    /// True if any whitespace-separated token is a betting-odds decimal (1.01–49.99).
+    /// Requires a '.' in the token so that plain integers like "5" (match count in a league
+    /// header) are never mistaken for odds and don't suppress league-header detection.
+    /// </summary>
     private static bool HasOddsToken(string text)
     {
         foreach (var token in text.Split([' ', '\n', '\t', '\r'], StringSplitOptions.RemoveEmptyEntries))
-            if (TryParseDecimal(token, out var d) && d is >= 1.01m and <= 49.99m)
+            if (token.Contains('.') && TryParseDecimal(token, out var d) && d is >= 1.01m and <= 49.99m)
                 return true;
         return false;
     }
