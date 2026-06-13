@@ -22,8 +22,8 @@ public class PlaywrightWinnerScraper(
     // Primary = telesport, secondary = livegames (automatic fallback)
     private static readonly string[] DefaultUrls =
     [
-        "https://www.telesport.co.il/winnerzonepage.aspx",
-        "https://www.livegames.co.il/winner",
+        "https://www.telesport.co.il/%D7%90%D7%96%D7%95%D7%A8%20%D7%95%D7%95%D7%99%D7%A0%D7%A8",
+        "https://www.livegames.co.il/winnerpage.aspx",
     ];
 
     // Known Israeli league names for league detection
