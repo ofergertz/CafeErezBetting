@@ -304,9 +304,13 @@ public class PlaywrightWinnerScraper(
         var odds      = new List<decimal>();
         var textCells = new List<string>();
         var timeCell  = (string?)null;
-        string? detectedBetType  = null;
-        string? detectedHandicap = null;
-        int?    detectedSubMarket = null;
+        string? detectedBetType   = null;
+        string? detectedHandicap  = null;
+        int?    detectedSubMarket  = null;
+        string? detectedFormNumber = null;
+        string? detectedScore      = null;
+        string? detectedMinute     = null;
+        string? detectedBetCode    = null;
 
         foreach (var raw in cells)
         {
@@ -320,6 +324,8 @@ public class PlaywrightWinnerScraper(
             // ".223" or ".223 (6)" → Winner form number; extract sub-market count from "(N)" if present
             if (Regex.IsMatch(cell, @"^\.\d+"))
             {
+                var numMatch = Regex.Match(cell, @"^\.(\d+)");
+                if (numMatch.Success) detectedFormNumber = numMatch.Groups[1].Value;
                 var subMatch = Regex.Match(cell, @"\((\d+)\)");
                 if (subMatch.Success && int.TryParse(subMatch.Groups[1].Value, out var n))
                     detectedSubMarket = n;
@@ -332,8 +338,12 @@ public class PlaywrightWinnerScraper(
             // Parenthetical-only like "(6)", "(7)" → market count, skip
             if (Regex.IsMatch(cell, @"^\([^)]+\)$")) continue;
 
-            // All-ASCII short codes: "S,D", "1X", "X2", "12", "SD" etc.
-            if (Regex.IsMatch(cell, @"^[A-Z0-9,./]+$") && cell.Length <= 5) continue;
+            // All-ASCII short codes: "S,D", "1X", "X2", "12", "SD" etc. — capture as bet code
+            if (Regex.IsMatch(cell, @"^[A-Z0-9,./]+$") && cell.Length <= 5)
+            {
+                detectedBetCode = cell;
+                continue;
+            }
 
             // HH:mm or H:mm → time  (must precede IsScoreToken — "18:30" would pass both)
             if (IsTimeToken(cell) && timeCell is null)
@@ -350,6 +360,20 @@ public class PlaywrightWinnerScraper(
             {
                 if (d is >= 1.01m and <= 49.99m)
                     odds.Add(d);
+                continue;
+            }
+
+            // Live score like "0-0" or "2-1" (dash-separated integers)
+            if (IsMatchScore(cell, out var matchScore))
+            {
+                detectedScore = matchScore;
+                continue;
+            }
+
+            // Match minute like "'3" or "45'" (apostrophe + integer)
+            if (IsMinuteToken(cell, out var matchMinute))
+            {
+                detectedMinute = matchMinute;
                 continue;
             }
 
@@ -395,7 +419,8 @@ public class PlaywrightWinnerScraper(
             index, homeTeam, awayTeam, odds[0], odds[1], odds[2], scheduledAt);
 
         return Build(index, homeTeam, awayTeam, league, scheduledAt,
-            odds[0], odds[1], odds[2], isLive, detectedBetType, detectedHandicap, detectedSubMarket);
+            odds[0], odds[1], odds[2], isLive, detectedBetType, detectedHandicap, detectedSubMarket,
+            detectedFormNumber, detectedScore, detectedMinute, detectedBetCode);
     }
 
     // ── Text-based parser (fallback for div/span layouts) ─────────────────────
@@ -503,7 +528,8 @@ public class PlaywrightWinnerScraper(
     private static WinnerMatchDto Build(
         int index, string home, string away, string league,
         DateTime scheduledAt, decimal o1, decimal oX, decimal o2, bool isLive,
-        string? betType = null, string? handicap = null, int? subMarket = null)
+        string? betType = null, string? handicap = null, int? subMarket = null,
+        string? formNumber = null, string? score = null, string? minute = null, string? betCode = null)
         => new(
             Guid.NewGuid(),
             $"scraped-{index:000}",
@@ -514,7 +540,11 @@ public class PlaywrightWinnerScraper(
             DateTime.UtcNow,
             betType,
             handicap,
-            subMarket);
+            subMarket,
+            formNumber,
+            score,
+            minute,
+            betCode);
 
     /// <summary>
     /// Strips invisible Unicode directional and format characters that prefix RTL site content.
@@ -559,6 +589,35 @@ public class PlaywrightWinnerScraper(
         if (idx < 1 || idx >= s.Length - 1) return false;
         return int.TryParse(s.AsSpan(0, idx), out _)
             && int.TryParse(s.AsSpan(idx + 1), out _);
+    }
+
+    // "0-0", "2-1", "10-3" — live match score with dash separator
+    private static bool IsMatchScore(string s, out string score)
+    {
+        score = "";
+        var idx = s.IndexOf('-');
+        if (idx < 1 || idx >= s.Length - 1) return false;
+        if (!int.TryParse(s.AsSpan(0, idx), out _)) return false;
+        if (!int.TryParse(s.AsSpan(idx + 1), out _)) return false;
+        score = s;
+        return true;
+    }
+
+    // "'3", "'45", "3'", "45'" — current match minute
+    private static bool IsMinuteToken(string s, out string minute)
+    {
+        minute = "";
+        if (s.Length >= 2 && s[0] == '\'')
+        {
+            var rest = s[1..].Trim();
+            if (int.TryParse(rest, out _)) { minute = rest; return true; }
+        }
+        if (s.Length >= 2 && s[^1] == '\'')
+        {
+            var rest = s[..^1].Trim();
+            if (int.TryParse(rest, out _)) { minute = rest; return true; }
+        }
+        return false;
     }
 
     private static bool HasLetterChar(string s)

@@ -155,7 +155,7 @@ public class WinnerScraperService(
         [
             new(Guid.NewGuid(), "ext-001", "מכבי תל אביב",    "הפועל ב\"ש",    "ליגת העל",  now.AddHours(2),  new(2.10m, 3.20m, 3.50m), "upcoming", false, now),
             new(Guid.NewGuid(), "ext-002", "ביתר ירושלים",    "מכבי חיפה",     "ליגת העל",  now.AddHours(4),  new(2.80m, 3.10m, 2.60m), "upcoming", false, now),
-            new(Guid.NewGuid(), "ext-003", "Real Madrid",      "Barcelona",      "La Liga",   now.AddMinutes(5),new(2.50m, 3.40m, 2.90m), "live",     true,  now),
+            new(Guid.NewGuid(), "ext-003", "Real Madrid",      "Barcelona",      "La Liga",   now.AddMinutes(5),new(2.50m, 3.40m, 2.90m), "live",     true,  now, Score: "1-0", Minute: "43"),
             new(Guid.NewGuid(), "ext-004", "Manchester City",  "Arsenal",        "Premier League", now.AddHours(6), new(1.90m, 3.80m, 4.00m), "upcoming", false, now),
             new(Guid.NewGuid(), "ext-005", "Bayern Munich",    "Borussia Dortmund", "Bundesliga", now.AddHours(3), new(1.70m, 3.60m, 4.50m), "upcoming", false, now),
         ];

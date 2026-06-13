@@ -299,18 +299,17 @@ export default function WinnerPage() {
             <EmptyState icon={Trophy} message={t('common.noData')} />
           </div>
         ) : (
-          <div className="space-y-5">
+          <div className="space-y-3">
             {leagueOrder.map(league => (
               <section key={league}>
-                {/* League header */}
-                <div className="flex items-center gap-2 mb-2 px-1">
-                  <span className="text-base leading-none">{leagueFlag(league)}</span>
-                  <h3 className="text-xs font-bold text-gray-600 uppercase tracking-wide truncate flex-1">
-                    {league}
-                  </h3>
+                {/* League header — dark bar */}
+                <div className="flex items-center gap-2 bg-gray-800 text-white px-3 py-2 rounded-t-lg" dir="rtl">
+                  <span className="text-sm leading-none">{leagueFlag(league)}</span>
+                  <h3 className="text-xs font-bold tracking-wide truncate flex-1">{league}</h3>
                   <span className="text-xs text-gray-400">{leagueMap[league].length}</span>
                 </div>
-                <div className="flex flex-col gap-2">
+                {/* Match rows */}
+                <div className="border border-t-0 border-gray-200 rounded-b-lg overflow-hidden">
                   {leagueMap[league].map(m => <MatchCard key={m.id} match={m} />)}
                 </div>
               </section>
