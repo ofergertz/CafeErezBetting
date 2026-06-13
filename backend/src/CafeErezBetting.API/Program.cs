@@ -63,13 +63,24 @@ builder.Services.AddHttpClient("livegames", c =>
     c.DefaultRequestHeaders.Add("Accept", "application/json, text/plain, */*");
     c.Timeout = TimeSpan.FromSeconds(15);
 });
+builder.Services.AddHttpClient("winner", c =>
+{
+    c.DefaultRequestHeaders.Add("User-Agent",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
+        "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36");
+    c.DefaultRequestHeaders.Add("Referer", "https://www.winner.co.il/");
+    c.DefaultRequestHeaders.Add("Accept-Language", "he-IL,he;q=0.9,en;q=0.8");
+    c.DefaultRequestHeaders.Add("Accept", "application/json, text/plain, */*");
+    c.Timeout = TimeSpan.FromSeconds(15);
+});
 
 // ─── Domain services ─────────────────────────────────────────────────────────
 builder.Services.AddScoped<IWinnerSyncService, WinnerScraperService>();
 builder.Services.AddScoped<TelesportApiClient>();
 builder.Services.AddScoped<LivegamesApiClient>();
 builder.Services.AddScoped<ITotoSyncService, TotoSyncService>();
-builder.Services.AddSingleton<PlaywrightTotoScraper>();
+builder.Services.AddScoped<TotoTelesportApiClient>();
+builder.Services.AddScoped<TotoWinnerApiClient>();
 builder.Services.AddScoped<IFormsService, FormsService>();
 builder.Services.AddScoped<IMatchNotificationService, SignalRNotificationService>();
 builder.Services.AddScoped<ICustomerService, CustomerService>();
