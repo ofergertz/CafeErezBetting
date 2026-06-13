@@ -60,15 +60,20 @@ services:
       test: ["CMD-SHELL", "curl -sf http://localhost:5000/health || exit 1"]
       interval: 15s
       timeout: 5s
-      retries: 10
-      start_period: 120s
+      retries: 12
+      start_period: 240s
     volumes:
       - ./backend:/app
-      # Mount host NuGet cache — avoids internet access during restore on Windows.
-      # USERPROFILE is set automatically on Windows (e.g. C:\Users\Ofer).
-      # On Linux/CI USERPROFILE is unset — fallback to /tmp/nuget-packages (writable, dotnet downloads there).
+      # NuGet cache — survives container restarts, avoids re-downloading packages
       - ${USERPROFILE:-/tmp/nuget-packages}/.nuget/packages:/root/.nuget/packages
-    command: dotnet watch run --project src/CafeErezBetting.API --no-launch-profile
+      # Roslyn/MSBuild obj cache — pre-built in image, survives volume-mount override.
+      # On first run: populated from image's pre-build.
+      # On subsequent runs: dotnet watch does incremental builds (~20s instead of ~3min).
+      # To reset: docker-compose down -v
+      - backend_obj_api:/app/src/CafeErezBetting.API/obj
+      - backend_obj_core:/app/src/CafeErezBetting.Core/obj
+      - backend_obj_infra:/app/src/CafeErezBetting.Infrastructure/obj
+    command: dotnet watch run --project src/CafeErezBetting.API --no-launch-profile --no-restore
 
   frontend:
     build:
@@ -94,3 +99,6 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  backend_obj_api:
+  backend_obj_core:
+  backend_obj_infra:
