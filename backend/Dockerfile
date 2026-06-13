@@ -2,9 +2,9 @@
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS dev
 WORKDIR /app
 EXPOSE 5000
-# Full Chromium dependency list required by Playwright (system chromium approach)
+# Chromium + curl (for healthcheck) + system deps
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    chromium \
+    chromium curl \
     libnss3 libnspr4 \
     libatk1.0-0 libatk-bridge2.0-0 \
     libcups2 libdrm2 libdbus-1-3 \
@@ -14,6 +14,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     fonts-liberation && \
     rm -rf /var/lib/apt/lists/*
 ENV PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium
+
+# ── Pre-restore: cache NuGet packages in image layer ─────────────────────────
+# Only project files first — layer is reused until .csproj changes
+COPY ["src/CafeErezBetting.API/CafeErezBetting.API.csproj",             "src/CafeErezBetting.API/"]
+COPY ["src/CafeErezBetting.Core/CafeErezBetting.Core.csproj",           "src/CafeErezBetting.Core/"]
+COPY ["src/CafeErezBetting.Infrastructure/CafeErezBetting.Infrastructure.csproj", "src/CafeErezBetting.Infrastructure/"]
+RUN dotnet restore "src/CafeErezBetting.API/CafeErezBetting.API.csproj"
+
+# ── Pre-build: warm obj/bin cache (persisted via named volumes) ───────────────
+COPY . .
+RUN dotnet build "src/CafeErezBetting.API/CafeErezBetting.API.csproj" -c Debug --no-restore
 
 
 # ── Build stage ───────────────────────────────────────────────────────────────
