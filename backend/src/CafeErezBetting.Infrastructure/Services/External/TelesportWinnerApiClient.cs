@@ -257,7 +257,7 @@ public sealed class TelesportWinnerApiClient(
 
 // ── JSON record ───────────────────────────────────────────────────────────────
 
-file record TelesportWinnerRecord(
+internal sealed record TelesportWinnerRecord(
     [property: JsonPropertyName("lineNum")]             int       LineNum,
     [property: JsonPropertyName("winner_id")]           int       WinnerId,
     [property: JsonPropertyName("status_id")]           int?      StatusId,
