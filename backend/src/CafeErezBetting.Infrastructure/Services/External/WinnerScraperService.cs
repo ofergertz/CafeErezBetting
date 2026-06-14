@@ -12,14 +12,17 @@ using Microsoft.Extensions.Logging;
 namespace CafeErezBetting.Infrastructure.Services.External;
 
 /// <summary>
-/// Syncs Winner/Toto match data from external sources (backend-only, never client).
-/// Falls back to Redis cache on external failure.
+/// Syncs Winner match data from external sources (backend-only, never client).
+/// Primary source: TelesportWinnerApiClient (HTTP JSON API, fast, no browser needed).
+/// Fallback:       PlaywrightWinnerScraper  (headless Chromium — requires installation).
+/// Falls back to Redis cache or mock data when all external sources fail.
 /// </summary>
 public class WinnerScraperService(
     AppDbContext db,
     IDistributedCache cache,
     IConfiguration config,
     IHostEnvironment env,
+    TelesportWinnerApiClient telesportApi,
     PlaywrightWinnerScraper playwright,
     ILogger<WinnerScraperService> logger
 ) : IWinnerSyncService
@@ -99,7 +102,9 @@ public class WinnerScraperService(
     public async Task<List<WinnerMatchDto>> ScrapeFromSourceAsync(int sourceIndex, CancellationToken ct = default)
     {
         logger.LogInformation("Direct scrape from source {Index}", sourceIndex);
-        return await playwright.ScrapeAsync(sourceIndex, ct);
+        return sourceIndex == 0
+            ? await telesportApi.FetchMatchesAsync(ct)
+            : await playwright.ScrapeAsync(sourceIndex - 1, ct);
     }
 
     private async Task<List<WinnerMatchDto>> GetFromDbAsync(CancellationToken ct)
@@ -130,6 +135,23 @@ public class WinnerScraperService(
             return (GetMockData(), true);
         }
 
+        // 1. Primary: Telesport HTTP JSON API (fast, no browser needed)
+        try
+        {
+            var apiMatches = await telesportApi.FetchMatchesAsync(ct);
+            if (apiMatches.Count > 0)
+            {
+                logger.LogInformation("TelesportWinnerApi: {Count} matches", apiMatches.Count);
+                return (apiMatches, false);
+            }
+            logger.LogWarning("TelesportWinnerApi returned 0 matches — trying Playwright");
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "TelesportWinnerApi failed — trying Playwright");
+        }
+
+        // 2. Fallback: Playwright headless browser
         try
         {
             var scraped = await playwright.ScrapeAsync(0, ct);
