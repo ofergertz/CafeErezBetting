@@ -31,21 +31,30 @@ public class WinnerScraperService(
     private const string LastSyncKey     = "winner:last_sync";
     private static readonly TimeSpan CacheTtl = TimeSpan.FromSeconds(90);
 
+    private bool CacheEnabled => config.GetValue<bool>("Cache:Winner:Enabled", defaultValue: false);
+
     public async Task<List<WinnerMatchDto>> GetMatchesAsync(CancellationToken ct = default)
     {
-        // 1. Try Redis cache first
-        try
+        // 1. Try Redis cache (only when enabled)
+        if (CacheEnabled)
         {
-            var cached = await cache.GetStringAsync(CacheKey, ct);
-            if (cached is not null)
+            try
             {
-                try { return JsonSerializer.Deserialize<List<WinnerMatchDto>>(cached) ?? []; }
-                catch { /* corrupted cache — fall through */ }
+                var cached = await cache.GetStringAsync(CacheKey, ct);
+                if (cached is not null)
+                {
+                    try { return JsonSerializer.Deserialize<List<WinnerMatchDto>>(cached) ?? []; }
+                    catch { /* corrupted cache — fall through */ }
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Redis unavailable — falling back to DB");
             }
         }
-        catch (Exception ex)
+        else
         {
-            logger.LogWarning(ex, "Redis unavailable — falling back to DB");
+            logger.LogDebug("Winner cache disabled (Cache:Winner:Enabled=false) — skipping Redis");
         }
 
         // 2. Fall back to DB
@@ -234,6 +243,12 @@ public class WinnerScraperService(
 
     private async Task CacheMatchesAsync(List<WinnerMatchDto> matches, CancellationToken ct)
     {
+        if (!CacheEnabled)
+        {
+            logger.LogDebug("Winner cache disabled — skipping Redis write");
+            return;
+        }
+
         await cache.SetStringAsync(
             CacheKey,
             JsonSerializer.Serialize(matches),
