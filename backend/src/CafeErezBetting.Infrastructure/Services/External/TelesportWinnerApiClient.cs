@@ -196,6 +196,11 @@ public sealed class TelesportWinnerApiClient(
 
             var status = isLive ? "live" : isFinished ? "finished" : "upcoming";
 
+            var betKind = (r.IsSingle == true && r.IsDouble == true) ? "S,D"
+                        : r.IsSingle == true ? "S"
+                        : r.IsDouble == true ? "D"
+                        : null;
+
             result.Add(new WinnerMatchDto(
                 Guid.NewGuid(),
                 $"wz-{r.LineNum}-{r.WinnerId}",
@@ -208,7 +213,8 @@ public sealed class TelesportWinnerApiClient(
                 isLive,
                 DateTime.UtcNow,
                 r.TypeName is "רגיל" or null ? null : r.TypeName,
-                FormNumber: r.LineNum.ToString()
+                FormNumber: r.LineNum.ToString(),
+                BetKind: betKind
             ));
         }
 
@@ -272,5 +278,7 @@ internal sealed record TelesportWinnerRecord(
     [property: JsonPropertyName("league_name_display")] string?   LeagueNameDisplay,
     [property: JsonPropertyName("name_1")]              string?   Name1,
     [property: JsonPropertyName("name_2")]              string?   Name2,
-    [property: JsonPropertyName("betCloseDate")]        DateTime? BetCloseDate
+    [property: JsonPropertyName("betCloseDate")]        DateTime? BetCloseDate,
+    [property: JsonPropertyName("isSingle")]            bool?     IsSingle,
+    [property: JsonPropertyName("isDouble")]            bool?     IsDouble
 );

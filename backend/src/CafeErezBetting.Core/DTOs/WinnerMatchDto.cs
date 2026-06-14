@@ -16,7 +16,8 @@ public record WinnerMatchDto(
     string? BetType = null,
     string? Handicap = null,
     int? SubMarket = null,
-    string? FormNumber = null
+    string? FormNumber = null,
+    string? BetKind = null
 );
 
 // JSON keys must match frontend: '1', 'X', '2'
