@@ -58,8 +58,9 @@ public class LivegamesApiClient(
 
             logger.LogInformation("WinnerAPI [{Client}]: received {Count} total records", clientName, records.Count);
 
-            var active = records.Where(r => r.ActiveToShow && r.Rate1.HasValue && r.Rate2.HasValue).ToList();
-            logger.LogInformation("WinnerAPI [{Client}]: {Count} active records with odds", clientName, active.Count);
+            // activetoshow=false for finished/upcoming — keep any record that has odds
+            var active = records.Where(r => r.Rate1.HasValue && r.Rate2.HasValue).ToList();
+            logger.LogInformation("WinnerAPI [{Client}]: {Count} records with odds", clientName, active.Count);
 
             return MapToDto(active, clientName);
         }
@@ -92,10 +93,15 @@ public class LivegamesApiClient(
             var game = r.Game;
 
             var (isLive, minute) = ParseLiveStatus(r.StatusFormatted, r.StatusName);
-            var hasScore = r.P1Score.HasValue && r.P2Score.HasValue;
-            var isFinished = !isLive && hasScore;
-            var score = (isLive || isFinished) && hasScore
-                ? $"{r.P1Score}-{r.P2Score}"
+            // "סיום" in status_formatted/status_name indicates a finished match.
+            // p1score/p2score are only populated during live play; result_1/result_2 hold the final score.
+            var isFinished = !isLive && (r.StatusFormatted == "סיום" || r.StatusName == "סיום");
+            var score = (isLive || isFinished)
+                ? (r.P1Score.HasValue && r.P2Score.HasValue
+                    ? $"{r.P1Score}-{r.P2Score}"
+                    : r.Result1.HasValue && r.Result2.HasValue
+                        ? $"{r.Result1}-{r.Result2}"
+                        : null)
                 : null;
 
             var status = isLive ? "live" : isFinished ? "finished" : "upcoming";
