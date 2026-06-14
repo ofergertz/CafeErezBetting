@@ -58,14 +58,14 @@ builder.Services.AddHttpClient("telesport", c =>
 .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
 {
     // m.telesport.co.il (mobile API) resolves to IPv6 which Docker bridge networks cannot route.
-    // Force IPv4 by intercepting the connect and resolving only A records.
+    // Force IPv4 and try all returned A records (some CDN edges may refuse HTTPS on certain IPs).
     ConnectCallback = async (ctx, ct) =>
     {
         var ipv4 = await Dns.GetHostAddressesAsync(ctx.DnsEndPoint.Host, AddressFamily.InterNetwork, ct);
         if (ipv4.Length == 0)
             throw new InvalidOperationException($"No IPv4 address for {ctx.DnsEndPoint.Host}");
         var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp) { NoDelay = true };
-        await socket.ConnectAsync(ipv4[0], ctx.DnsEndPoint.Port, ct);
+        await socket.ConnectAsync(ipv4, ctx.DnsEndPoint.Port, ct);
         return new NetworkStream(socket, ownsSocket: true);
     }
 });
@@ -82,14 +82,14 @@ builder.Services.AddHttpClient("livegames", c =>
 .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
 {
     // m.livegames.co.il resolves to IPv6 which Docker bridge networks cannot route.
-    // Force IPv4 by intercepting the connect and resolving only A records.
+    // Force IPv4 and try all returned A records (some CDN edges may refuse HTTPS on certain IPs).
     ConnectCallback = async (ctx, ct) =>
     {
         var ipv4 = await Dns.GetHostAddressesAsync(ctx.DnsEndPoint.Host, AddressFamily.InterNetwork, ct);
         if (ipv4.Length == 0)
             throw new InvalidOperationException($"No IPv4 address for {ctx.DnsEndPoint.Host}");
         var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp) { NoDelay = true };
-        await socket.ConnectAsync(ipv4[0], ctx.DnsEndPoint.Port, ct);
+        await socket.ConnectAsync(ipv4, ctx.DnsEndPoint.Port, ct);
         return new NetworkStream(socket, ownsSocket: true);
     }
 });
