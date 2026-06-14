@@ -54,6 +54,20 @@ builder.Services.AddHttpClient("telesport", c =>
     c.DefaultRequestHeaders.Add("Accept-Language", "he-IL,he;q=0.9,en;q=0.8");
     c.DefaultRequestHeaders.Add("Accept", "application/json, text/plain, */*");
     c.Timeout = TimeSpan.FromSeconds(15);
+})
+.ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+{
+    // m.telesport.co.il (mobile API) resolves to IPv6 which Docker bridge networks cannot route.
+    // Force IPv4 by intercepting the connect and resolving only A records.
+    ConnectCallback = async (ctx, ct) =>
+    {
+        var ipv4 = await Dns.GetHostAddressesAsync(ctx.DnsEndPoint.Host, AddressFamily.InterNetwork, ct);
+        if (ipv4.Length == 0)
+            throw new InvalidOperationException($"No IPv4 address for {ctx.DnsEndPoint.Host}");
+        var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp) { NoDelay = true };
+        await socket.ConnectAsync(ipv4[0], ctx.DnsEndPoint.Port, ct);
+        return new NetworkStream(socket, ownsSocket: true);
+    }
 });
 builder.Services.AddHttpClient("livegames", c =>
 {
