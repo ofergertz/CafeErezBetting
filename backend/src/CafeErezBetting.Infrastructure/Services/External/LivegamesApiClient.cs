@@ -93,9 +93,10 @@ public class LivegamesApiClient(
             var game = r.Game;
 
             var (isLive, minute) = ParseLiveStatus(r.StatusFormatted, r.StatusName);
-            // "סיום" in status_formatted/status_name indicates a finished match.
-            // p1score/p2score are only populated during live play; result_1/result_2 hold the final score.
-            var isFinished = !isLive && (r.StatusFormatted == "סיום" || r.StatusName == "סיום");
+            // Livegames uses "סיום"; Telesport mobile uses "הסתיים"
+            var isFinished = !isLive && (
+                r.StatusFormatted is "סיום" or "הסתיים" ||
+                r.StatusName      is "סיום" or "הסתיים");
             var score = (isLive || isFinished)
                 ? (r.P1Score.HasValue && r.P2Score.HasValue
                     ? $"{r.P1Score}-{r.P2Score}"
