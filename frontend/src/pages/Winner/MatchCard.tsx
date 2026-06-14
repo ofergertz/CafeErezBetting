@@ -44,18 +44,27 @@ export default function MatchCard({ match }: Props) {
     '2': match.odds['2'],
   }
 
+  // When X odds are 0/absent, show only 1 and 2 expanded to fill the same total width
+  const hasX = oddsMap['X'] > 0
+  const visiblePicks = hasX ? PICKS : PICKS.filter(p => p.key !== 'X')
+
   const scheduledAt = new Date(match.scheduledAt)
   const timeStr = scheduledAt.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })
   const dateStr = scheduledAt.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' })
 
   return (
     <div className={`card p-4 transition-opacity ${isLocked ? 'opacity-50' : ''}`}>
-      {/* Header: sub-market count + time/live + form number */}
+      {/* Header: sub-market + betKind | time/live + form number */}
       <div className="flex items-center justify-between mb-3 gap-2">
         <div className="flex items-center gap-1.5 min-w-0">
           {match.subMarket != null && (
             <span className="text-xs text-gray-400 bg-gray-50 border border-gray-200 rounded px-1.5 py-0.5 font-mono">
               ({match.subMarket})
+            </span>
+          )}
+          {match.betKind && (
+            <span className="text-xs text-indigo-600 bg-indigo-50 border border-indigo-200 rounded px-1.5 py-0.5 font-mono font-bold">
+              {match.betKind}
             </span>
           )}
         </div>
@@ -103,17 +112,17 @@ export default function MatchCard({ match }: Props) {
           </div>
         </div>
 
-        {/* Odds buttons */}
-        <div className="flex gap-2 flex-shrink-0">
-          {PICKS.map(({ key, label }) => {
+        {/* Odds buttons — fixed total width so 1+2 expand when X is absent */}
+        <div className="w-[172px] flex gap-2 flex-shrink-0">
+          {visiblePicks.map(({ key, label }) => {
             const odds = oddsMap[key]
             const isSelected = selected === key
             return (
               <button
                 key={key}
-                disabled={isLocked || odds == null}
+                disabled={isLocked || !odds}
                 aria-label={`בחר: ${key === '1' ? match.homeTeam : key === '2' ? match.awayTeam : 'תיקו'}`}
-                onClick={() => odds != null && addOrToggle({
+                onClick={() => odds && addOrToggle({
                   matchId: match.id,
                   homeTeam: match.homeTeam,
                   awayTeam: match.awayTeam,
@@ -121,8 +130,8 @@ export default function MatchCard({ match }: Props) {
                   odds,
                 })}
                 className={`
-                  flex flex-col items-center justify-center
-                  min-w-[52px] min-h-[44px] rounded-lg border text-sm font-semibold
+                  flex flex-col items-center justify-center flex-1
+                  min-h-[44px] rounded-lg border text-sm font-semibold
                   transition-all duration-100 select-none transform-gpu
                   disabled:cursor-not-allowed
                   ${isSelected
@@ -132,7 +141,7 @@ export default function MatchCard({ match }: Props) {
                 `}
               >
                 <span className="text-xs text-gray-500">{label}</span>
-                <span>{odds != null ? odds.toFixed(2) : '—'}</span>
+                <span>{odds ? odds.toFixed(2) : '—'}</span>
               </button>
             )
           })}

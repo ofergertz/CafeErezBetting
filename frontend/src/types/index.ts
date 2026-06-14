@@ -75,6 +75,7 @@ export interface WinnerMatch {
   handicap?: string | null
   subMarket?: number | null
   formNumber?: string | null
+  betKind?: string | null
 }
 
 export interface BetSlipItem {
