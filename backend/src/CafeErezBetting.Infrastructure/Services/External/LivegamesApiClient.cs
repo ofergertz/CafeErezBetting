@@ -7,10 +7,11 @@ using Microsoft.Extensions.Logging;
 namespace CafeErezBetting.Infrastructure.Services.External;
 
 /// <summary>
-/// Fetches Winner match data from the Livegames JSON API.
-/// Endpoint: https://m.livegames.co.il/api/winner?date=yyyy-MM-dd
-/// Returns one record per betting market (same structure as Telesport).
-/// Used as a secondary source when Telesport is unavailable.
+/// Fetches Winner match data from the Livegames or Telesport mobile JSON APIs.
+/// Both endpoints share the same JSON structure (LivegamesWinnerRecord).
+///
+/// Livegames:        https://m.livegames.co.il/api/winner?date=yyyy-MM-dd
+/// Telesport mobile: https://m.telesport.co.il/api/winner?date=yyyy-MM-dd
 /// </summary>
 public class LivegamesApiClient(
     IHttpClientFactory httpFactory,
@@ -21,18 +22,29 @@ public class LivegamesApiClient(
         PropertyNameCaseInsensitive = true,
     };
 
-    // Invisible Unicode directional chars (same cleanup as Telesport)
+    // Invisible Unicode directional chars
     private static readonly Regex InvisibleChars =
         new(@"[​-‏‪-‮﻿­ ]", RegexOptions.Compiled);
 
-    public async Task<List<WinnerMatchDto>> FetchWinnerMatchesAsync(CancellationToken ct = default)
+    private const string LivegamesBaseUrl       = "https://m.livegames.co.il/api/winner";
+    private const string TelesportMobileBaseUrl = "https://m.telesport.co.il/api/winner";
+
+    public Task<List<WinnerMatchDto>> FetchWinnerMatchesAsync(CancellationToken ct = default)
+        => FetchFromAsync(LivegamesBaseUrl, "livegames", ct);
+
+    public Task<List<WinnerMatchDto>> FetchTelesportMobileAsync(CancellationToken ct = default)
+        => FetchFromAsync(TelesportMobileBaseUrl, "telesport", ct);
+
+    // ── Core fetch ────────────────────────────────────────────────────────────
+
+    private async Task<List<WinnerMatchDto>> FetchFromAsync(string baseUrl, string clientName, CancellationToken ct)
     {
         var date = DateTime.Today.ToString("yyyy-MM-dd");
-        var url  = $"https://m.livegames.co.il/api/winner?date={date}";
+        var url  = $"{baseUrl}?date={date}";
 
-        logger.LogInformation("LivegamesAPI: fetching {Url}", url);
+        logger.LogInformation("WinnerAPI [{Client}]: fetching {Url}", clientName, url);
 
-        var http = httpFactory.CreateClient("livegames");
+        var http = httpFactory.CreateClient(clientName);
         try
         {
             var json    = await http.GetStringAsync(url, ct);
@@ -40,28 +52,30 @@ public class LivegamesApiClient(
 
             if (records is null || records.Count == 0)
             {
-                logger.LogWarning("LivegamesAPI: empty response");
+                logger.LogWarning("WinnerAPI [{Client}]: empty response", clientName);
                 return [];
             }
 
-            logger.LogInformation("LivegamesAPI: received {Count} total records", records.Count);
+            logger.LogInformation("WinnerAPI [{Client}]: received {Count} total records", clientName, records.Count);
 
             var active = records.Where(r => r.ActiveToShow && r.Rate1.HasValue && r.Rate2.HasValue).ToList();
-            logger.LogInformation("LivegamesAPI: {Count} active records with odds", active.Count);
+            logger.LogInformation("WinnerAPI [{Client}]: {Count} active records with odds", clientName, active.Count);
 
-            return MapToDto(active);
+            return MapToDto(active, clientName);
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "LivegamesAPI: request failed");
+            logger.LogWarning(ex, "WinnerAPI [{Client}]: request failed", clientName);
             return [];
         }
     }
 
     // ── Mapping ───────────────────────────────────────────────────────────────
 
-    private List<WinnerMatchDto> MapToDto(List<LivegamesWinnerRecord> records)
+    private List<WinnerMatchDto> MapToDto(List<LivegamesWinnerRecord> records, string clientName)
     {
+        var prefix = clientName == "telesport" ? "ts-m" : "lg";
+
         var subMarketCount = records
             .Where(r => r.Game is not null)
             .GroupBy(r => r.Game!.Id)
@@ -93,7 +107,7 @@ public class LivegamesApiClient(
 
             result.Add(new WinnerMatchDto(
                 Guid.NewGuid(),
-                $"lg-{r.WinnerId}",
+                $"{prefix}-{r.WinnerId}",
                 homeTeam,
                 awayTeam,
                 league,
