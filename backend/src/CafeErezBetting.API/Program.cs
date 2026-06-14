@@ -92,7 +92,6 @@ builder.Services.AddHttpClient("winner", c =>
 
 // ─── Domain services ─────────────────────────────────────────────────────────
 builder.Services.AddScoped<IWinnerSyncService, WinnerScraperService>();
-builder.Services.AddScoped<TelesportApiClient>();
 builder.Services.AddScoped<LivegamesApiClient>();
 builder.Services.AddScoped<ITotoSyncService, TotoSyncService>();
 builder.Services.AddScoped<TotoTelesportApiClient>();

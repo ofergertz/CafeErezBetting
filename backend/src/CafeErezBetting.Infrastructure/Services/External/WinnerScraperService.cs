@@ -11,14 +11,14 @@ namespace CafeErezBetting.Infrastructure.Services.External;
 
 /// <summary>
 /// Syncs Winner match data from external sources (backend-only, never client).
-/// Primary source: Telesport JSON API (fast, clean structured data).
-/// Secondary source: Livegames JSON API (one record per game).
+/// Primary source:   Livegames mobile JSON API  (m.livegames.co.il/api/winner)
+/// Secondary source: Telesport mobile JSON API  (m.telesport.co.il/api/winner)
 /// Falls back to Redis cache or DB when both APIs fail.
+/// No API key required for either source.
 /// </summary>
 public class WinnerScraperService(
     AppDbContext db,
     IDistributedCache cache,
-    TelesportApiClient telesportApi,
     LivegamesApiClient livegamesApi,
     ILogger<WinnerScraperService> logger
 ) : IWinnerSyncService
@@ -95,31 +95,15 @@ public class WinnerScraperService(
     public async Task<List<WinnerMatchDto>> ScrapeFromSourceAsync(int sourceIndex, CancellationToken ct = default)
     {
         logger.LogInformation("Direct scrape from source {Index}", sourceIndex);
-        // 0 = Telesport API, 1 = Livegames API
+        // 0 = Livegames mobile, 1 = Telesport mobile
         return sourceIndex == 1
-            ? await livegamesApi.FetchWinnerMatchesAsync(ct)
-            : await telesportApi.FetchWinnerMatchesAsync(ct);
+            ? await livegamesApi.FetchTelesportMobileAsync(ct)
+            : await livegamesApi.FetchWinnerMatchesAsync(ct);
     }
 
     private async Task<List<WinnerMatchDto>> ScrapeExternalAsync(CancellationToken ct)
     {
-        // 1. Primary: Telesport JSON API
-        try
-        {
-            var matches = await telesportApi.FetchWinnerMatchesAsync(ct);
-            if (matches.Count > 0)
-            {
-                logger.LogInformation("TelesportAPI sync succeeded: {Count} matches", matches.Count);
-                return matches;
-            }
-            logger.LogWarning("TelesportAPI returned 0 matches — trying Livegames");
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "TelesportAPI failed — trying Livegames");
-        }
-
-        // 2. Secondary: Livegames JSON API
+        // 1. Primary: Livegames mobile JSON API
         try
         {
             var matches = await livegamesApi.FetchWinnerMatchesAsync(ct);
@@ -128,11 +112,27 @@ public class WinnerScraperService(
                 logger.LogInformation("LivegamesAPI sync succeeded: {Count} matches", matches.Count);
                 return matches;
             }
-            logger.LogWarning("LivegamesAPI returned 0 matches");
+            logger.LogWarning("LivegamesAPI returned 0 matches — trying Telesport mobile");
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "LivegamesAPI also failed");
+            logger.LogWarning(ex, "LivegamesAPI failed — trying Telesport mobile");
+        }
+
+        // 2. Secondary: Telesport mobile JSON API
+        try
+        {
+            var matches = await livegamesApi.FetchTelesportMobileAsync(ct);
+            if (matches.Count > 0)
+            {
+                logger.LogInformation("Telesport mobile sync succeeded: {Count} matches", matches.Count);
+                return matches;
+            }
+            logger.LogWarning("Telesport mobile returned 0 matches");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Telesport mobile also failed");
         }
 
         return [];
