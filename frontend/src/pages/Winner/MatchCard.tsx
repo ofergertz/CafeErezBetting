@@ -50,7 +50,7 @@ export default function MatchCard({ match }: Props) {
 
   return (
     <div className={`card p-4 transition-opacity ${isLocked ? 'opacity-50' : ''}`}>
-      {/* Header: sub-market count + time/live */}
+      {/* Header: sub-market count + time/live + form number */}
       <div className="flex items-center justify-between mb-3 gap-2">
         <div className="flex items-center gap-1.5 min-w-0">
           {match.subMarket != null && (
@@ -71,6 +71,9 @@ export default function MatchCard({ match }: Props) {
           {match.status === 'suspended' && (
             <span className="text-amber-600 font-semibold">{t('winner.matchSuspended')}</span>
           )}
+          {match.formNumber && (
+            <span className="text-gray-400 font-mono">{match.formNumber}.</span>
+          )}
         </div>
       </div>
 
@@ -80,7 +83,7 @@ export default function MatchCard({ match }: Props) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <TeamBadge name={match.homeTeam} />
-            <p className="font-semibold text-sm truncate">{match.homeTeam}</p>
+            <p className="font-semibold text-sm text-gray-800 truncate">{match.homeTeam}</p>
           </div>
 
           {match.betType ? (
@@ -96,7 +99,7 @@ export default function MatchCard({ match }: Props) {
 
           <div className="flex items-center gap-2">
             <TeamBadge name={match.awayTeam} />
-            <p className="font-semibold text-sm truncate">{match.awayTeam}</p>
+            <p className="font-semibold text-sm text-gray-800 truncate">{match.awayTeam}</p>
           </div>
         </div>
 

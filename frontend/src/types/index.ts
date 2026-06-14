@@ -63,6 +63,7 @@ export type WinnerPick = '1' | 'X' | '2'
 
 export interface WinnerMatch {
   id: string
+  externalId: string
   homeTeam: string
   awayTeam: string
   league: string
@@ -73,6 +74,7 @@ export interface WinnerMatch {
   betType?: string | null
   handicap?: string | null
   subMarket?: number | null
+  formNumber?: string | null
 }
 
 export interface BetSlipItem {
