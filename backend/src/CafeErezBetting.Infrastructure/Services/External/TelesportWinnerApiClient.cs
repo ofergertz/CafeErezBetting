@@ -188,6 +188,11 @@ public sealed class TelesportWinnerApiClient(
 
             var statusDisplay = WebUtility.HtmlDecode(r.StatusNameDisplay ?? "");
             var (isLive, minute) = ParseLiveStatus(statusDisplay);
+
+            // Guard: if betting closes in the future the match hasn't started yet
+            if (isLive && r.BetCloseDate.HasValue && r.BetCloseDate.Value > DateTime.UtcNow.AddMinutes(2))
+                isLive = false;
+
             var isFinished = !isLive && IsFinishedStatus(statusDisplay, r.StatusId);
 
             var score = (isLive || isFinished) && r.Result1.HasValue && r.Result2.HasValue
@@ -244,7 +249,7 @@ public sealed class TelesportWinnerApiClient(
             return (true, s[..^1].Trim());
 
         if (s.StartsWith("מחצית") || s.StartsWith("הפסקה") || s.StartsWith("HT") ||
-            s.StartsWith("Q") || s.StartsWith("OT") || s.StartsWith("P"))
+            s.StartsWith("Q") || s.StartsWith("OT") || s == "Penalties" || s == "Pen")
             return (true, s);
 
         if (s.Contains("חי") || s.Contains("Live") || s.Contains("בשידור"))
