@@ -207,7 +207,8 @@ public sealed class TelesportWinnerApiClient(
                 status,
                 isLive,
                 DateTime.UtcNow,
-                r.TypeName is "רגיל" or null ? null : r.TypeName
+                r.TypeName is "רגיל" or null ? null : r.TypeName,
+                FormNumber: r.LineNum.ToString()
             ));
         }
 
